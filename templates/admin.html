@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BloodDonation - Give Blood, Save Lives</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              inter: ["Inter", "sans-serif"],
+            },
+            colors: {
+              "red-primary": "#c62828",
+              "red-light": "#ef5350",
+              "pink-bg": "#fff5f5",
+              "pink-light": "#ffeaea",
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="font-inter bg-pink-bg">
+    <!-- Navigation -->
+    <header
+      class="bg-white border-b border-pink-200 sticky top-0 z-50 shadow-sm"
+    >
+      <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center h-16">
+          <!-- Logo -->
+          <div class="flex items-center space-x-2">
+            <i class="fas fa-droplet text-red-primary text-xl"></i>
+            <span class="text-xl font-bold text-red-primary"
+              >BloodDonation</span
+            >
+          </div>
+
+          <!-- Navigation Links -->
+          <div class="hidden md:flex items-center space-x-8">
+            <a
+              href="#"
+              class="text-gray-700 hover:text-red-primary font-medium border-b-2 border-red-primary"
+              >Home</a
+            >
+            <a href="#" class="text-gray-700 hover:text-red-primary font-medium"
+              >About Us</a
+            >
+            <a href="#" class="text-gray-700 hover:text-red-primary font-medium"
+              >Testimonials</a
+            >
+            <a href="#" class="text-gray-700 hover:text-red-primary font-medium"
+              >FAQ</a
+            >
+            <a href="#" class="text-gray-700 hover:text-red-primary font-medium"
+              >Contact</a
+            >
+          </div>
+
+          <!-- Donate Button -->
+          <button
+            class="bg-red-primary hover:bg-red-700 text-white px-6 py-2 rounded-lg font-semibold transition duration-200 shadow-lg"
+          >
+            Donate Now
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <!-- Left Content -->
+        <div class="bg-pink-light rounded-3xl p-8 lg:p-12 relative">
+          <h1
+            class="text-4xl lg:text-5xl font-bold text-red-primary mb-4 leading-tight"
+          >
+            Give Blood,<br />Save Lives.
+          </h1>
+          <p class="text-gray-700 text-lg mb-6 leading-relaxed">
+            Your blood donation can give someone another chance at life. Be the
+            reason someone smiles today.
+          </p>
+          <button
+            class="bg-red-primary hover:bg-red-700 text-white px-8 py-3 rounded-lg font-semibold mb-6 transition duration-200 shadow-lg"
+          >
+            <i class="fas fa-heart mr-2"></i>Donate Now
+          </button>
+
+          <!-- Stats -->
+          <div class="flex items-center space-x-4">
+            <div class="flex -space-x-2">
+              <img
+                class="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover"
+                src="https://randomuser.me/api/portraits/men/32.jpg"
+                alt="Donor"
+              />
+              <img
+                class="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover"
+                src="https://randomuser.me/api/portraits/women/44.jpg"
+                alt="Donor"
+              />
+              <img
+                class="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover"
+                src="https://randomuser.me/api/portraits/men/54.jpg"
+                alt="Donor"
+              />
+              <img
+                class="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover"
+                src="https://randomuser.me/api/portraits/women/65.jpg"
+                alt="Donor"
+              />
+            </div>
+            <div class="bg-white px-4 py-2 rounded-lg shadow-sm">
+              <span class="text-red-primary font-bold">5K+</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Image -->
+        <div class="relative">
+          <img
+            src="https://images.unsplash.com/photo-1465101046530-73398c7f28ca?auto=format&fit=crop&w=600&q=80"
+            alt="Blood Donation"
+            class="w-full h-auto rounded-3xl shadow-lg object-cover"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- Why Donate Blood Section -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <!-- Left Image -->
+        <div class="relative">
+          <img
+            src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80"
+            alt="Doctor"
+            class="w-full h-auto rounded-3xl shadow-lg object-cover"
+          />
+        </div>
+
+        <!-- Right Content -->
+        <div class="bg-white rounded-3xl p-8 lg:p-12 shadow-lg">
+          <h2 class="text-3xl font-bold text-red-primary mb-4">
+            Why Donate Blood?
+          </h2>
+          <p class="text-gray-700 text-lg mb-6 leading-relaxed">
+            Every donation counts. Blood is essential for surgeries, cancer
+            treatment, chronic illnesses, and traumatic injuries. A single
+            donation can help save multiple lives.
+          </p>
+          <button
+            class="bg-red-primary hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold mb-4 transition duration-200 shadow-lg"
+          >
+            Learn More
+          </button>
+          <div class="bg-pink-light p-4 rounded-lg inline-block">
+            <span class="text-red-primary font-semibold">
+              <i class="fas fa-clock mr-2"></i>Every 2 seconds, someone in the
+              U.S. needs blood.
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl lg:text-4xl font-bold text-red-primary mb-4">
+          How It Works
+        </h2>
+        <p class="text-gray-600 text-lg">The Simple Steps to Saving Lives</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <!-- Step 1 -->
+        <div
+          class="bg-white rounded-2xl p-6 text-center shadow-lg hover:shadow-xl transition duration-300"
+        >
+          <div
+            class="bg-red-primary text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4"
+          >
+            1
+          </div>
+          <div class="text-red-primary text-4xl mb-4">
+            <i class="fas fa-user-plus"></i>
+          </div>
+          <h3 class="text-xl font-bold text-red-primary mb-3">Register</h3>
+          <p class="text-gray-600">
+            Sign up online and schedule an appointment at your nearest blood
+            center.
+          </p>
+        </div>
+
+        <!-- Step 2 -->
+        <div
+          class="bg-white rounded-2xl p-6 text-center shadow-lg hover:shadow-xl transition duration-300"
+        >
+          <div
+            class="bg-red-primary text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4"
+          >
+            2
+          </div>
+          <div class="text-red-primary text-4xl mb-4">
+            <i class="fas fa-notes-medical"></i>
+          </div>
+          <h3 class="text-xl font-bold text-red-primary mb-3">Health Check</h3>
+          <p class="text-gray-600">
+            A quick health check to ensure it's safe for you to donate.
+          </p>
+        </div>
+
+        <!-- Step 3 -->
+        <div
+          class="bg-white rounded-2xl p-6 text-center shadow-lg hover:shadow-xl transition duration-300"
+        >
+          <div
+            class="bg-red-primary text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4"
+          >
+            3
+          </div>
+          <div class="text-red-primary text-4xl mb-4">
+            <i class="fas fa-tint"></i>
+          </div>
+          <h3 class="text-xl font-bold text-red-primary mb-3">Donate Blood</h3>
+          <p class="text-gray-600">
+            The process only takes about 10-15 minutes, and it's entirely safe.
+          </p>
+        </div>
+
+        <!-- Step 4 -->
+        <div
+          class="bg-white rounded-2xl p-6 text-center shadow-lg hover:shadow-xl transition duration-300"
+        >
+          <div
+            class="bg-red-primary text-white w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold mx-auto mb-4"
+          >
+            4
+          </div>
+          <div class="text-red-primary text-4xl mb-4">
+            <i class="fas fa-mug-hot"></i>
+          </div>
+          <h3 class="text-xl font-bold text-red-primary mb-3">
+            Refresh & Recover
+          </h3>
+          <p class="text-gray-600">
+            Enjoy snacks and drinks while relaxing after your donation.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl lg:text-4xl font-bold text-red-primary mb-4">
+          Testimonials
+        </h2>
+        <p class="text-gray-600 text-lg">Stories from Donors and Recipients</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Testimonial 1 -->
+        <div class="bg-pink-light rounded-2xl p-8 text-center shadow-lg">
+          <img
+            class="w-16 h-16 rounded-full mx-auto mb-4 object-cover border-2 border-white shadow-md"
+            src="https://randomuser.me/api/portraits/men/32.jpg"
+            alt="Mark P."
+          />
+          <p class="text-gray-700 text-lg mb-4 italic">
+            "Donating blood was a quick and rewarding experience. Knowing I
+            could help someone in need felt amazing."
+          </p>
+          <div class="text-red-primary font-bold">Mark P., Regular Donor</div>
+        </div>
+
+        <!-- Testimonial 2 -->
+        <div class="bg-pink-light rounded-2xl p-8 text-center shadow-lg">
+          <img
+            class="w-16 h-16 rounded-full mx-auto mb-4 object-cover border-2 border-white shadow-md"
+            src="https://randomuser.me/api/portraits/men/54.jpg"
+            alt="Andrew T."
+          />
+          <p class="text-gray-700 text-lg mb-4 italic">
+            "Without blood donors, my surgery wouldn't have been possible. I'm
+            grateful to every person who donates."
+          </p>
+          <div class="text-red-primary font-bold">
+            Andrew T., Blood Recipient
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section with Doctor Character -->
+    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div
+        class="bg-red-primary rounded-3xl p-8 lg:p-12 text-center text-white relative overflow-hidden"
+      >
+        <div class="relative z-10">
+          <h2 class="text-3xl lg:text-4xl font-bold mb-4">
+            Ready to Make a Difference?
+          </h2>
+          <p class="text-xl mb-8 opacity-90">
+            Join our community of life-savers and donate blood today!
+          </p>
+          <button
+            class="bg-white text-red-primary px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition duration-200 shadow-lg"
+          >
+            Register Now
+          </button>
+        </div>
+        <!-- Doctor Character -->
+        <div class="absolute right-8 bottom-0 hidden lg:block">
+          <div
+            class="w-32 h-48 bg-gradient-to-t from-red-600 to-red-primary rounded-t-full relative"
+          >
+            <div
+              class="absolute top-8 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-yellow-200 rounded-full"
+            ></div>
+            <div
+              class="absolute top-20 left-1/2 transform -translate-x-1/2 w-8 h-12 bg-white rounded-lg"
+            ></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl lg:text-4xl font-bold text-red-primary mb-4">
+          Frequently Asked Questions
+        </h2>
+        <p class="text-gray-600 text-lg">Got Questions? We've Got Answers!</p>
+      </div>
+
+      <div class="space-y-6">
+        <!-- FAQ 1 -->
+        <div class="bg-white rounded-xl p-6 shadow-lg">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-bold text-gray-800">
+              Who can donate blood?
+            </h3>
+            <i class="fas fa-chevron-down text-red-primary"></i>
+          </div>
+          <p class="text-gray-600 mt-3">
+            Most healthy people over 17 who weigh at least 110 pounds can donate
+            blood. Some medical conditions may prevent donation.
+          </p>
+        </div>
+
+        <!-- FAQ 2 -->
+        <div class="bg-white rounded-xl p-6 shadow-lg">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-bold text-gray-800">
+              How often can I donate blood?
+            </h3>
+            <i class="fas fa-chevron-down text-red-primary"></i>
+          </div>
+          <p class="text-gray-600 mt-3">
+            You can donate whole blood every 56 days. Platelet and plasma
+            donation intervals may vary.
+          </p>
+        </div>
+
+        <!-- FAQ 3 -->
+        <div class="bg-white rounded-xl p-6 shadow-lg">
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-bold text-gray-800">
+              Is blood donation safe?
+            </h3>
+            <i class="fas fa-chevron-down text-red-primary"></i>
+          </div>
+          <p class="text-gray-600 mt-3">
+            Yes, blood donation is safe. All equipment is sterile and used only
+            once.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-red-primary text-white py-12">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <!-- Logo and Description -->
+          <div class="col-span-1 md:col-span-2">
+            <div class="flex items-center space-x-2 mb-4">
+              <i class="fas fa-droplet text-2xl"></i>
+              <span class="text-2xl font-bold">BloodDonation</span>
+            </div>
+            <p class="text-red-100 mb-4">
+              Connecting donors with those in need. Every donation saves lives
+              and makes a difference in our community.
+            </p>
+            <div class="flex space-x-4">
+              <i
+                class="fab fa-facebook text-xl hover:text-red-200 cursor-pointer"
+              ></i>
+              <i
+                class="fab fa-twitter text-xl hover:text-red-200 cursor-pointer"
+              ></i>
+              <i
+                class="fab fa-instagram text-xl hover:text-red-200 cursor-pointer"
+              ></i>
+              <i
+                class="fab fa-linkedin text-xl hover:text-red-200 cursor-pointer"
+              ></i>
+            </div>
+          </div>
+
+          <!-- Quick Links -->
+          <div>
+            <h3 class="text-lg font-semibold mb-4">Quick Links</h3>
+            <div class="space-y-2">
+              <a href="#" class="block text-red-100 hover:text-white">Home</a>
+              <a href="#" class="block text-red-100 hover:text-white"
+                >About Us</a
+              >
+              <a href="#" class="block text-red-100 hover:text-white">FAQs</a>
+              <a href="#" class="block text-red-100 hover:text-white"
+                >Contact</a
+              >
+            </div>
+          </div>
+
+          <!-- Contact Info -->
+          <div>
+            <h3 class="text-lg font-semibold mb-4">Contact</h3>
+            <div class="space-y-2 text-red-100">
+              <div class="flex items-center space-x-2">
+                <i class="fas fa-phone"></i>
+                <span>+88 (555) 123-4567</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <i class="fas fa-envelope"></i>
+                <span>info@blooddonation.org</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <i class="fas fa-location-dot"></i>
+                <span>123 Blood Drive Street, City, State</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-red-400 mt-8 pt-8 text-center">
+          <p class="text-red-100">
+            &copy; 2025 BloodDonation. All rights reserved.
+          </p>
+        </div>
+      </div>
+    </footer>
+
+    <!-- JavaScript for Interactive Elements -->
+    <script>
+      // FAQ Toggle functionality
+      document.querySelectorAll(".fas.fa-chevron-down").forEach((icon) => {
+        icon.addEventListener("click", function () {
+          this.classList.toggle("rotate-180");
+          this.classList.toggle("transform");
+        });
+      });
+
+      // Smooth scrolling for navigation links
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener("click", function (e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute("href"));
+          if (target) {
+            target.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        });
+      });
+
+      // Add hover effects and animations
+      document.addEventListener("DOMContentLoaded", function () {
+        // Add fade-in animation on scroll
+        const observerOptions = {
+          threshold: 0.1,
+          rootMargin: "0px 0px -50px 0px",
+        };
+
+        const observer = new IntersectionObserver(function (entries) {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("animate-fade-in");
+            }
+          });
+        }, observerOptions);
+
+        // Observe all sections
+        document.querySelectorAll("section").forEach((section) => {
+          observer.observe(section);
+        });
+      });
+    </script>
+
+    <style>
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .animate-fade-in {
+        animation: fadeIn 0.6s ease-out forwards;
+      }
+
+      /* Custom hover effects */
+      .hover-lift:hover {
+        transform: translateY(-5px);
+        transition: transform 0.3s ease;
+      }
+
+      /* Custom gradient background */
+      .gradient-bg {
+        background: linear-gradient(135deg, #fff5f5 0%, #ffeaea 100%);
+      }
+    </style>
+  </body>
+</html>
