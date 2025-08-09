@@ -109,5 +109,11 @@ def receiver_profile():
         return redirect('/receiver-dashboard')
     return render_template('receiver_profile.html')
 
+
+# Admin dashboard route
+@app.route('/dashboard')
+def dashboard():
+    return render_template('admin.html')
+
 if __name__ == '__main__':
     app.run(debug=True)
