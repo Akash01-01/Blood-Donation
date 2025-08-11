@@ -1,3 +1,5 @@
+
+
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -35,6 +37,12 @@ class Receiver(db.Model):
     location = db.Column(db.String(200), nullable=False)
     contact = db.Column(db.String(20), nullable=False)
 
+# Logout route
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('home'))
+
 @app.route('/')
 def home():
     return render_template('index.html')
@@ -46,15 +54,16 @@ def signup():
         email = request.form['email']
         password = generate_password_hash(request.form['password'])
         role = request.form['role']
+        # Check if email already exists
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            return "Email already registered. Please use a different email.", 400
         user = User(name=name, email=email, password=password, role=role)
         db.session.add(user)
         db.session.commit()
         session['user_id'] = user.id
         session['role'] = role
-        if role == 'donor':
-            return redirect(url_for('donor_profile'))
-        else:
-            return redirect(url_for('receiver_profile'))
+        return redirect(url_for('dashboard'))
     return render_template('signup.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -66,20 +75,7 @@ def login():
         if user and check_password_hash(user.password, password):
             session['user_id'] = user.id
             session['role'] = user.role
-            if user.role == 'donor':
-                # Check if donor profile exists
-                donor = Donor.query.filter_by(user_id=user.id).first()
-                if donor:
-                    return redirect('/donor-dashboard')
-                else:
-                    return redirect(url_for('donor_profile'))
-            else:
-                # Check if receiver profile exists
-                receiver = Receiver.query.filter_by(user_id=user.id).first()
-                if receiver:
-                    return redirect('/receiver-dashboard')
-                else:
-                    return redirect(url_for('receiver_profile'))
+            return redirect(url_for('dashboard'))
         else:
             return "Invalid credentials", 401
     return render_template('index.html')
