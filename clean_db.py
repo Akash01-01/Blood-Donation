@@ -1,19 +1,16 @@
 from app import db, app, Admin
 from werkzeug.security import generate_password_hash
+import os
 
-# Create database and tables
+# Delete the existing database file completely
+db_path = 'instance/blood_finder.db'
+if os.path.exists(db_path):
+    os.remove(db_path)
+    print("Old database file deleted")
+
+# Create database and tables from scratch
 with app.app_context():
-    # Drop all tables first to avoid conflicts
-    db.drop_all()
-    
-    # Execute raw SQL to ensure User table is completely removed
-    try:
-        db.engine.execute('DROP TABLE IF EXISTS user')
-        print("User table dropped successfully")
-    except:
-        print("User table already doesn't exist")
-    
-    # Create new tables
+    # Create new tables (this will only create Donor, Receiver, Admin)
     db.create_all()
     
     # Create default admin
@@ -25,7 +22,7 @@ with app.app_context():
     db.session.add(admin)
     db.session.commit()
     
-    print("Database 'blood_finder.db' created successfully!")
+    print("New database created successfully!")
     print("Tables created: Donor, Receiver, Admin")
     print("Default admin created:")
     print("Email: admin@bloodfinder.com")

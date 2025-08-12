@@ -7,20 +7,12 @@ app.secret_key = 'your_secret_key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blood_finder.db'
 db = SQLAlchemy(app)
 
-# User model
-class User(db.Model):
+# Donor model (includes user info)
+class Donor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
-    role = db.Column(db.String(20), nullable=False)  # 'donor' or 'receiver'
-    donor = db.relationship('Donor', backref='user', uselist=False)
-    receiver = db.relationship('Receiver', backref='user', uselist=False)
-
-# Donor model
-class Donor(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     age = db.Column(db.Integer, nullable=False)
     gender = db.Column(db.String(10), nullable=False)
     blood_group = db.Column(db.String(5), nullable=False)
@@ -28,12 +20,21 @@ class Donor(db.Model):
     contact = db.Column(db.String(20), nullable=False)
     availability = db.Column(db.Boolean, default=True)
 
-# Receiver model
+# Receiver model (includes user info)
 class Receiver(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
     location = db.Column(db.String(200), nullable=False)
     contact = db.Column(db.String(20), nullable=False)
+
+# Admin model
+class Admin(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100), unique=True, nullable=False)
+    password = db.Column(db.String(200), nullable=False)
 
 @app.route('/')
 def home():
@@ -46,15 +47,46 @@ def signup():
         email = request.form['email']
         password = generate_password_hash(request.form['password'])
         role = request.form['role']
-        user = User(name=name, email=email, password=password, role=role)
-        db.session.add(user)
-        db.session.commit()
-        session['user_id'] = user.id
-        session['role'] = role
+        location = request.form.get('location', '')
+        contact = request.form.get('contact', '')
+        
         if role == 'donor':
-            return redirect(url_for('donor_profile'))
-        else:
-            return redirect(url_for('receiver_profile'))
+            # Get donor-specific fields
+            age = int(request.form.get('age', 0))
+            gender = request.form.get('gender', '')
+            blood_group = request.form.get('blood_group', '')
+            
+            # Create complete donor entry
+            donor = Donor(
+                name=name, 
+                email=email, 
+                password=password, 
+                age=age, 
+                gender=gender, 
+                blood_group=blood_group, 
+                location=location, 
+                contact=contact
+            )
+            db.session.add(donor)
+            db.session.commit()
+            session['user_id'] = donor.id
+            session['role'] = 'donor'
+            return redirect('/donor-dashboard')
+            
+        elif role == 'receiver':
+            # Create complete receiver entry
+            receiver = Receiver(
+                name=name, 
+                email=email, 
+                password=password, 
+                location=location, 
+                contact=contact
+            )
+            db.session.add(receiver)
+            db.session.commit()
+            session['user_id'] = receiver.id
+            session['role'] = 'receiver'
+            return redirect('/receiver-dashboard')
     return render_template('signup.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -62,24 +94,26 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        user = User.query.filter_by(email=email).first()
+        
+        # Check in all tables
+        donor = Donor.query.filter_by(email=email).first()
+        receiver = Receiver.query.filter_by(email=email).first()
+        admin = Admin.query.filter_by(email=email).first()
+        
+        user = donor or receiver or admin
+        
         if user and check_password_hash(user.password, password):
             session['user_id'] = user.id
-            session['role'] = user.role
-            if user.role == 'donor':
-                # Check if donor profile exists
-                donor = Donor.query.filter_by(user_id=user.id).first()
-                if donor:
-                    return redirect('/donor-dashboard')
-                else:
-                    return redirect(url_for('donor_profile'))
-            else:
-                # Check if receiver profile exists
-                receiver = Receiver.query.filter_by(user_id=user.id).first()
-                if receiver:
-                    return redirect('/receiver-dashboard')
-                else:
-                    return redirect(url_for('receiver_profile'))
+            
+            if donor:
+                session['role'] = 'donor'
+                return redirect('/donor-dashboard')
+            elif receiver:
+                session['role'] = 'receiver'
+                return redirect('/receiver-dashboard')
+            elif admin:
+                session['role'] = 'admin'
+                return redirect(url_for('admin_dashboard'))
         else:
             return "Invalid credentials", 401
     return render_template('index.html')
@@ -92,8 +126,14 @@ def donor_profile():
         blood_group = request.form['blood_group']
         location = request.form['location']
         contact = request.form['contact']
-        donor = Donor(user_id=session['user_id'], age=age, gender=gender, blood_group=blood_group, location=location, contact=contact)
-        db.session.add(donor)
+        
+        # Update existing donor record
+        donor = Donor.query.get(session['user_id'])
+        donor.age = age
+        donor.gender = gender
+        donor.blood_group = blood_group
+        donor.location = location
+        donor.contact = contact
         db.session.commit()
         return redirect('/donor-dashboard')
     return render_template('donor_profile.html')
@@ -103,17 +143,59 @@ def receiver_profile():
     if request.method == 'POST':
         location = request.form['location']
         contact = request.form['contact']
-        receiver = Receiver(user_id=session['user_id'], location=location, contact=contact)
-        db.session.add(receiver)
+        
+        # Update existing receiver record
+        receiver = Receiver.query.get(session['user_id'])
+        receiver.location = location
+        receiver.contact = contact
         db.session.commit()
         return redirect('/receiver-dashboard')
     return render_template('receiver_profile.html')
 
-
 # Admin dashboard route
+@app.route('/admin-dashboard')
+def admin_dashboard():
+    if session.get('role') != 'admin':
+        return redirect('/')
+    return render_template('admin_dashboard.html')
+
+# Admin login route (separate from regular login)
+@app.route('/admin-login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        
+        admin = Admin.query.filter_by(email=email).first()
+        
+        if admin and check_password_hash(admin.password, password):
+            session['user_id'] = admin.id
+            session['role'] = 'admin'
+            return redirect(url_for('admin_dashboard'))
+        else:
+            return "Invalid admin credentials", 401
+    return render_template('admin_login.html')
+
+# Keep the old dashboard route for compatibility
 @app.route('/dashboard')
 def dashboard():
-    return render_template('admin.html')
+    return render_template('admin_dashboard.html')
+
+# Function to create default admin (call this once)
+def create_default_admin():
+    with app.app_context():
+        # Check if admin already exists
+        admin = Admin.query.filter_by(email='admin@bloodfinder.com').first()
+        if not admin:
+            # Create default admin
+            admin = Admin(
+                name='Administrator',
+                email='admin@bloodfinder.com',
+                password=generate_password_hash('admin123')
+            )
+            db.session.add(admin)
+            db.session.commit()
+            print("Default admin created: admin@bloodfinder.com / admin123")
 
 if __name__ == '__main__':
     app.run(debug=True)
