@@ -1,3 +1,59 @@
+# Admin: Edit Donor
+@app.route('/admin/edit-donor/<int:donor_id>', methods=['GET', 'POST'])
+def admin_edit_donor(donor_id):
+    if session.get('role') != 'admin':
+        return redirect('/')
+    donor = Donor.query.get_or_404(donor_id)
+    if request.method == 'POST':
+        donor.name = request.form['name']
+        donor.email = request.form['email']
+        donor.age = request.form['age']
+        donor.gender = request.form['gender']
+        donor.blood_group = request.form['blood_group']
+        donor.location = request.form['location']
+        donor.contact = request.form['contact']
+        donor.availability = 'availability' in request.form
+        db.session.commit()
+        return redirect(url_for('admin_dashboard'))
+    return render_template('admin_edit_donor.html', donor=donor)
+
+# Admin: Delete Donor
+@app.route('/admin/delete-donor/<int:donor_id>', methods=['POST'])
+def admin_delete_donor(donor_id):
+    if session.get('role') != 'admin':
+        return redirect('/')
+    donor = Donor.query.get_or_404(donor_id)
+    db.session.delete(donor)
+    db.session.commit()
+    return redirect(url_for('admin_dashboard'))
+
+# Admin: Edit Receiver
+@app.route('/admin/edit-receiver/<int:receiver_id>', methods=['GET', 'POST'])
+def admin_edit_receiver(receiver_id):
+    if session.get('role') != 'admin':
+        return redirect('/')
+    receiver = Receiver.query.get_or_404(receiver_id)
+    if request.method == 'POST':
+        receiver.name = request.form['name']
+        receiver.email = request.form['email']
+        receiver.location = request.form['location']
+        receiver.contact = request.form['contact']
+        db.session.commit()
+        return redirect(url_for('admin_dashboard'))
+    return render_template('admin_edit_receiver.html', receiver=receiver)
+
+# Admin: Delete Receiver
+@app.route('/admin/delete-receiver/<int:receiver_id>', methods=['POST'])
+def admin_delete_receiver(receiver_id):
+    if session.get('role') != 'admin':
+        return redirect('/')
+    receiver = Receiver.query.get_or_404(receiver_id)
+    db.session.delete(receiver)
+    db.session.commit()
+    return redirect(url_for('admin_dashboard'))
+
+if __name__ == '__main__':
+    app.run(debug=True)
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -118,18 +174,6 @@ def login():
             return "Invalid credentials", 401
     return render_template('index.html')
 
-@app.route('/donor-dashboard')
-def donor_dashboard():
-    if session.get('role') != 'donor':
-        return redirect('/')
-    return f"<h1>Welcome Donor!</h1><p>Donor Dashboard coming soon...</p>"
-
-@app.route('/receiver-dashboard')
-def receiver_dashboard():
-    if session.get('role') != 'receiver':
-        return redirect('/')
-    return f"<h1>Welcome Receiver!</h1><p><a href='/search-donors'>Search for Donors</a></p>"
-
 @app.route('/donor-profile', methods=['GET', 'POST'])
 def donor_profile():
     if request.method == 'POST':
@@ -171,24 +215,7 @@ def admin_dashboard():
         return redirect('/')
     donors = Donor.query.all()
     receivers = Receiver.query.all()
-    
-    # Calculate stats for dashboard
-    total_donors = len(donors)
-    total_receivers = len(receivers)
-    available_donors = len([d for d in donors if d.availability])
-    
-    return render_template('admin_dashboard.html', 
-                         donors=donors, 
-                         receivers=receivers,
-                         total_donors=total_donors,
-                         total_receivers=total_receivers,
-                         available_donors=available_donors)
-
-# Logout route
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect('/')
+    return render_template('admin_dashboard.html', donors=donors, receivers=receivers)
 
 # Admin login route (separate from regular login)
 @app.route('/admin-login', methods=['GET', 'POST'])
@@ -278,19 +305,8 @@ def admin_delete_receiver(receiver_id):
 
 # Function to create default admin (call this once)
 def create_default_admin():
-    with app.app_context():
-        # Check if admin already exists
-        admin = Admin.query.filter_by(email='admin@bloodfinder.com').first()
-        if not admin:
-            # Create default admin
-            admin = Admin(
-                name='Administrator',
-                email='admin@bloodfinder.com',
-                password=generate_password_hash('admin123')
-            )
-            db.session.add(admin)
-            db.session.commit()
-            print("Default admin created: admin@bloodfinder.com / admin123")
+# ...existing code...
+# Admin: Edit Donor
+@app.route('/admin/edit-donor/<int:donor_id>', methods=['GET', 'POST'])
 
-if __name__ == '__main__':
-    app.run(debug=True)
+def admin_edit_donor(donor_id):
