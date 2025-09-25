@@ -25,34 +25,75 @@
     </header>
 
     <div class="max-w-6xl mx-auto py-8 px-4">
-        <!-- Search Form -->
+        <!-- Enhanced Search Form with Distance and GPS -->
         <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Search Filters</h2>
-            <form method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
-                    <input type="text" name="location" placeholder="Enter city, state, or pincode" 
-                           value="{{ location }}" 
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-map-marker-alt text-red-600 mr-2"></i>Find Nearby Donors
+            </h2>
+            <form method="POST" id="searchForm" class="space-y-4">
+                <!-- Hidden fields for GPS coordinates -->
+                <input type="hidden" name="user_lat" id="user_lat">
+                <input type="hidden" name="user_lon" id="user_lon">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                        <div class="relative">
+                            <input type="text" name="location" id="location" 
+                                   placeholder="Enter city, state, or pincode" 
+                                   value="{{ location }}" 
+                                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                                <button type="button" onclick="useMyLocation()" 
+                                        class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                                    <i class="fas fa-location-arrow mr-1"></i>Use My Location
+                                </button>
+                            </div>
+                        </div>
+                        <div id="location-status" class="mt-1 text-xs text-gray-500"></div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Blood Group</label>
+                        <select name="blood_group" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                            <option value="">All Blood Groups</option>
+                            <option value="A+" {{ 'selected' if blood_group == 'A+' }}>A+</option>
+                            <option value="A-" {{ 'selected' if blood_group == 'A-' }}>A-</option>
+                            <option value="B+" {{ 'selected' if blood_group == 'B+' }}>B+</option>
+                            <option value="B-" {{ 'selected' if blood_group == 'B-' }}>B-</option>
+                            <option value="O+" {{ 'selected' if blood_group == 'O+' }}>O+</option>
+                            <option value="O-" {{ 'selected' if blood_group == 'O-' }}>O-</option>
+                            <option value="AB+" {{ 'selected' if blood_group == 'AB+' }}>AB+</option>
+                            <option value="AB-" {{ 'selected' if blood_group == 'AB-' }}>AB-</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Search Radius</label>
+                        <select name="radius" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                            <option value="5" {{ 'selected' if radius == 5 }}>Within 5 km</option>
+                            <option value="10" {{ 'selected' if radius == 10 }}>Within 10 km</option>
+                            <option value="20" {{ 'selected' if radius == 20 }}>Within 20 km</option>
+                            <option value="50" {{ 'selected' if radius == 50 }}>Within 50 km</option>
+                            <option value="100" {{ 'selected' if radius == 100 }}>Within 100 km</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex items-end">
+                        <button type="submit" id="searchBtn" 
+                                class="w-full bg-red-600 text-white py-2 px-6 rounded-lg hover:bg-red-700 transition-colors font-medium">
+                            <i class="fas fa-search mr-2"></i>
+                            <span id="searchBtnText">Find Donors</span>
+                        </button>
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Blood Group</label>
-                    <select name="blood_group" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
-                        <option value="">All Blood Groups</option>
-                        <option value="A+" {{ 'selected' if blood_group == 'A+' }}>A+</option>
-                        <option value="A-" {{ 'selected' if blood_group == 'A-' }}>A-</option>
-                        <option value="B+" {{ 'selected' if blood_group == 'B+' }}>B+</option>
-                        <option value="B-" {{ 'selected' if blood_group == 'B-' }}>B-</option>
-                        <option value="O+" {{ 'selected' if blood_group == 'O+' }}>O+</option>
-                        <option value="O-" {{ 'selected' if blood_group == 'O-' }}>O-</option>
-                        <option value="AB+" {{ 'selected' if blood_group == 'AB+' }}>AB+</option>
-                        <option value="AB-" {{ 'selected' if blood_group == 'AB-' }}>AB-</option>
-                    </select>
-                </div>
-                <div class="flex items-end">
-                    <button type="submit" class="w-full bg-red-600 text-white py-2 px-6 rounded-lg hover:bg-red-700 transition-colors">
-                        <i class="fas fa-search mr-2"></i>Search Donors
-                    </button>
+                
+                <!-- Location Detection Info -->
+                <div id="location-info" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div class="flex items-center">
+                        <i class="fas fa-map-marker-alt text-blue-600 mr-2"></i>
+                        <span class="text-sm text-blue-800">Using your current location for accurate distance calculation</span>
+                    </div>
                 </div>
             </form>
         </div>
@@ -104,7 +145,16 @@
                                     {{ donor.blood_group }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-900">{{ donor.location }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-900">
+                                <div>
+                                    <i class="fas fa-map-marker-alt mr-1 text-gray-400"></i>{{ donor.location }}
+                                </div>
+                                {% if show_distance and donor.distance is defined %}
+                                <div class="text-xs text-green-600 font-medium mt-1">
+                                    <i class="fas fa-route mr-1"></i>{{ donor.distance }} km away
+                                </div>
+                                {% endif %}
+                            </td>
                             <td class="px-6 py-4 text-sm text-gray-900">
                                 <i class="fas fa-phone mr-1 text-gray-400"></i>{{ donor.contact }}
                             </td>
@@ -178,5 +228,115 @@
         </div>
         {% endif %}
     </div>
+
+    <!-- JavaScript for GPS Location and Enhanced UX -->
+    <script>
+        let locationDetected = false;
+        
+        // Use My Location function
+        function useMyLocation() {
+            const locationStatus = document.getElementById('location-status');
+            const locationInfo = document.getElementById('location-info');
+            const locationInput = document.getElementById('location');
+            
+            locationStatus.textContent = 'Detecting your location...';
+            locationStatus.className = 'mt-1 text-xs text-blue-600';
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        
+                        // Store coordinates in hidden fields
+                        document.getElementById('user_lat').value = lat;
+                        document.getElementById('user_lon').value = lon;
+                        
+                        // Show location info
+                        locationInfo.classList.remove('hidden');
+                        locationDetected = true;
+                        
+                        // Get human-readable address
+                        reverseGeocode(lat, lon);
+                        
+                        locationStatus.textContent = 'Location detected successfully!';
+                        locationStatus.className = 'mt-1 text-xs text-green-600';
+                    },
+                    function(error) {
+                        let errorMsg = '';
+                        switch(error.code) {
+                            case error.PERMISSION_DENIED:
+                                errorMsg = 'Location access denied by user.';
+                                break;
+                            case error.POSITION_UNAVAILABLE:
+                                errorMsg = 'Location information unavailable.';
+                                break;
+                            case error.TIMEOUT:
+                                errorMsg = 'Location request timed out.';
+                                break;
+                            default:
+                                errorMsg = 'An unknown error occurred.';
+                                break;
+                        }
+                        locationStatus.textContent = errorMsg + ' Please enter location manually.';
+                        locationStatus.className = 'mt-1 text-xs text-red-600';
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 300000 // 5 minutes
+                    }
+                );
+            } else {
+                locationStatus.textContent = 'Geolocation not supported by browser. Please enter location manually.';
+                locationStatus.className = 'mt-1 text-xs text-red-600';
+            }
+        }
+        
+        // Reverse geocode coordinates to address
+        function reverseGeocode(lat, lon) {
+            fetch('/api/reverse-geocode', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    latitude: lat,
+                    longitude: lon
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('location').value = data.address;
+                }
+            })
+            .catch(error => {
+                console.log('Reverse geocoding failed:', error);
+            });
+        }
+        
+        // Enhanced form submission
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            const searchBtn = document.getElementById('searchBtn');
+            const searchBtnText = document.getElementById('searchBtnText');
+            
+            // Show loading state
+            searchBtn.disabled = true;
+            searchBtnText.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Searching...';
+            
+            // Re-enable after form submission
+            setTimeout(() => {
+                searchBtn.disabled = false;
+                searchBtnText.innerHTML = 'Find Donors';
+            }, 2000);
+        });
+        
+        // Auto-detect location on page load (optional)
+        window.addEventListener('load', function() {
+            // Uncomment the line below to auto-detect location on page load
+            // useMyLocation();
+        });
+    </script>
 </body>
 </html>

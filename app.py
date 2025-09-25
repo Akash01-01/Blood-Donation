@@ -1,11 +1,80 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from geopy.geocoders import Nominatim
+from geopy.distance import geodesic
+import time
+from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///blood_finder.db'
 db = SQLAlchemy(app)
+
+# Free Geocoding Functions
+def geocode_address_free(address):
+    """
+    Convert address to coordinates using FREE Nominatim service
+    No API key required, completely free
+    """
+    try:
+        # Initialize free geocoder
+        geolocator = Nominatim(user_agent="blood_donation_system_v1")
+        
+        # Add small delay to respect rate limits (1 per second)
+        time.sleep(1.1)
+        
+        # Geocode the address
+        location = geolocator.geocode(address, timeout=10)
+        
+        if location:
+            return {
+                'latitude': location.latitude,
+                'longitude': location.longitude,
+                'full_address': location.address,
+                'success': True
+            }
+        else:
+            return {'success': False, 'error': 'Address not found'}
+            
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
+
+def calculate_distance_free(lat1, lon1, lat2, lon2):
+    """
+    Calculate distance using free geopy library
+    Returns distance in kilometers
+    """
+    try:
+        point1 = (lat1, lon1)
+        point2 = (lat2, lon2)
+        
+        # Calculate distance using geodesic (most accurate)
+        distance = geodesic(point1, point2).kilometers
+        
+        return round(distance, 2)
+    except:
+        return None
+
+def reverse_geocode_free(lat, lon):
+    """
+    Convert coordinates to address using FREE Nominatim service
+    """
+    try:
+        geolocator = Nominatim(user_agent="blood_donation_system_v1")
+        time.sleep(1.1)
+        
+        location = geolocator.reverse(f"{lat}, {lon}", timeout=10)
+        
+        if location:
+            return {
+                'address': location.address,
+                'success': True
+            }
+        else:
+            return {'success': False, 'error': 'Location not found'}
+    except Exception as e:
+        return {'success': False, 'error': str(e)}
 
 # Donor model (includes user info)
 class Donor(db.Model):
@@ -19,6 +88,11 @@ class Donor(db.Model):
     location = db.Column(db.String(200), nullable=False)
     contact = db.Column(db.String(20), nullable=False)
     availability = db.Column(db.Boolean, default=True)
+    # Location coordinates for distance-based search
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    geocoded = db.Column(db.Boolean, default=False)
+    last_geocoded = db.Column(db.DateTime, nullable=True)
 
 # Receiver model (includes user info)
 class Receiver(db.Model):
@@ -28,6 +102,11 @@ class Receiver(db.Model):
     password = db.Column(db.String(200), nullable=False)
     location = db.Column(db.String(200), nullable=False)
     contact = db.Column(db.String(20), nullable=False)
+    # Location coordinates for distance-based search
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    geocoded = db.Column(db.Boolean, default=False)
+    last_geocoded = db.Column(db.DateTime, nullable=True)
 
 # Donation History model
 class DonationHistory(db.Model):
@@ -110,6 +189,18 @@ def signup():
                 location=location, 
                 contact=contact
             )
+            
+            # Geocode location in background (optional - don't block signup)
+            try:
+                geocode_result = geocode_address_free(location)
+                if geocode_result['success']:
+                    donor.latitude = geocode_result['latitude']
+                    donor.longitude = geocode_result['longitude']
+                    donor.geocoded = True
+                    donor.last_geocoded = datetime.now()
+            except:
+                pass  # Don't fail signup if geocoding fails
+            
             db.session.add(donor)
             db.session.commit()
             session['user_id'] = donor.id
@@ -125,6 +216,18 @@ def signup():
                 location=location, 
                 contact=contact
             )
+            
+            # Geocode location in background (optional - don't block signup)
+            try:
+                geocode_result = geocode_address_free(location)
+                if geocode_result['success']:
+                    receiver.latitude = geocode_result['latitude']
+                    receiver.longitude = geocode_result['longitude']
+                    receiver.geocoded = True
+                    receiver.last_geocoded = datetime.now()
+            except:
+                pass  # Don't fail signup if geocoding fails
+            
             db.session.add(receiver)
             db.session.commit()
             session['user_id'] = receiver.id
@@ -308,40 +411,108 @@ def admin_login():
 def dashboard():
     return render_template('admin_dashboard.html')
 
-# Receiver: Search Donors by Location and Blood Group
+# Receiver: Enhanced Search Donors with Distance-based Filtering
 @app.route('/search-donors', methods=['GET', 'POST'])
 def search_donors():
     donors = []
     location = ''
     blood_group = ''
+    radius = 10
+    user_lat = None
+    user_lon = None
+    show_distance = False
     
     if request.method == 'POST':
-        location = request.form.get('location', '')
-        blood_group = request.form.get('blood_group', '')
+        location = request.form.get('location', '').strip()
+        blood_group = request.form.get('blood_group', '').strip()
+        radius = int(request.form.get('radius', 10))
+        user_lat = request.form.get('user_lat')
+        user_lon = request.form.get('user_lon')
         
-        # Build query based on filters
+        # Start with base query - only available donors
         query = Donor.query.filter(Donor.availability == True)
         
-        if location:
-            query = query.filter(Donor.location.ilike(f'%{location}%'))
-        
+        # Filter by blood group if specified
         if blood_group:
             query = query.filter(Donor.blood_group == blood_group)
         
         donors = query.all()
+        
+        # Handle location-based filtering
+        recipient_lat = None
+        recipient_lon = None
+        
+        # Priority 1: Use GPS coordinates if provided
+        if user_lat and user_lon:
+            try:
+                recipient_lat = float(user_lat)
+                recipient_lon = float(user_lon)
+                show_distance = True
+            except:
+                pass
+        
+        # Priority 2: Geocode text location if no GPS coordinates
+        elif location:
+            geocode_result = geocode_address_free(location)
+            if geocode_result['success']:
+                recipient_lat = geocode_result['latitude']
+                recipient_lon = geocode_result['longitude']
+                show_distance = True
+        
+        # If we have recipient coordinates, filter by distance
+        if recipient_lat and recipient_lon:
+            donors_with_distance = []
+            
+            for donor in donors:
+                # Geocode donor if not already done
+                if not donor.geocoded or not donor.latitude or not donor.longitude:
+                    donor_geocode = geocode_address_free(donor.location)
+                    if donor_geocode['success']:
+                        donor.latitude = donor_geocode['latitude']
+                        donor.longitude = donor_geocode['longitude']
+                        donor.geocoded = True
+                        donor.last_geocoded = datetime.now()
+                        db.session.commit()
+                
+                # Calculate distance if donor has coordinates
+                if donor.latitude and donor.longitude:
+                    distance = calculate_distance_free(
+                        recipient_lat, recipient_lon,
+                        donor.latitude, donor.longitude
+                    )
+                    
+                    if distance and distance <= radius:
+                        donor.distance = distance
+                        donors_with_distance.append(donor)
+            
+            # Sort by distance (nearest first)
+            donors_with_distance.sort(key=lambda x: x.distance)
+            donors = donors_with_distance
+        
+        # If no location provided, show all matching donors
+        elif not location and not user_lat:
+            # Just filter by blood group if no location provided
+            pass
     
-    # If accessed from receiver dashboard, return JSON for AJAX
-    if request.headers.get('Content-Type') == 'application/json':
-        return {
-            'donors': [{
-                'name': donor.name,
-                'blood_group': donor.blood_group,
-                'location': donor.location,
-                'contact': donor.contact
-            } for donor in donors]
-        }
+    return render_template('search_donors.html', 
+                         donors=donors, 
+                         location=location, 
+                         blood_group=blood_group,
+                         radius=radius,
+                         show_distance=show_distance)
+
+# API: Reverse Geocoding for "Use My Location" feature
+@app.route('/api/reverse-geocode', methods=['POST'])
+def api_reverse_geocode():
+    data = request.get_json()
+    lat = data.get('latitude')
+    lon = data.get('longitude')
     
-    return render_template('search_donors.html', donors=donors, location=location, blood_group=blood_group)
+    if not lat or not lon:
+        return jsonify({'success': False, 'error': 'Coordinates required'})
+    
+    result = reverse_geocode_free(lat, lon)
+    return jsonify(result)
 
 # Admin: Edit Donor
 @app.route('/admin/edit-donor/<int:donor_id>', methods=['GET', 'POST'])

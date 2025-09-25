@@ -13,8 +13,9 @@ with app.app_context():
     except:
         print("User table already doesn't exist")
     
-    # Create new tables
+    # Create new tables with enhanced location fields
     db.create_all()
+    print("Database created successfully with enhanced location features!")
     
     # Create default admin
     admin = Admin(
