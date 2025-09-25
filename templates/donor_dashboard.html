@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Donor Dashboard - Blood Donation System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body class="bg-gray-100">
+    <div class="min-h-screen flex">
+      <!-- Sidebar -->
+      <div class="bg-red-700 text-white w-64 py-6 px-4 flex flex-col">
+        <div class="flex items-center mb-8">
+          <i class="fas fa-droplet text-2xl mr-2"></i>
+          <h1 class="text-xl font-bold">Donor Dashboard</h1>
+        </div>
+
+        <!-- Role Switcher -->
+        <div class="mb-6 p-3 bg-red-600 rounded-lg">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-sm">
+              Current Role:
+              <span
+                class="font-semibold text-white bg-red-700 px-2 py-1 rounded"
+                >🩸 Donor</span
+              >
+            </p>
+            <div class="text-xs text-red-100">
+              <i class="fas fa-user-check"></i>
+            </div>
+          </div>
+          <form method="POST" action="/switch-role" class="inline w-full">
+            <input type="hidden" name="role" value="receiver" />
+            <button
+              type="submit"
+              class="w-full text-xs bg-white text-red-700 px-3 py-2 rounded hover:bg-gray-100 transition-colors font-medium"
+              title="Switch to recipient mode to request blood when needed"
+            >
+              <i class="fas fa-exchange-alt mr-1"></i> Switch to Recipient Mode
+            </button>
+          </form>
+          <p class="text-xs text-red-100 mt-1 text-center">
+            Help others by donating blood
+          </p>
+        </div>
+
+        <nav class="flex-1">
+          <a
+            href="#dashboard-section"
+            class="flex items-center space-x-3 p-3 rounded hover:bg-red-600 transition-colors"
+            onclick="showSection('dashboard-section')"
+          >
+            <i class="fas fa-home w-6"></i>
+            <span>Dashboard</span>
+          </a>
+          <a
+            href="#donations-section"
+            class="flex items-center space-x-3 p-3 rounded hover:bg-red-600 transition-colors"
+            onclick="showSection('donations-section')"
+          >
+            <i class="fas fa-history w-6"></i>
+            <span>Donation History</span>
+          </a>
+          <a
+            href="#requests-section"
+            class="flex items-center space-x-3 p-3 rounded hover:bg-red-600 transition-colors"
+            onclick="showSection('requests-section')"
+          >
+            <i class="fas fa-hand-holding-heart w-6"></i>
+            <span>Blood Requests</span>
+          </a>
+          <a
+            href="#profile-section"
+            class="flex items-center space-x-3 p-3 rounded hover:bg-red-600 transition-colors"
+            onclick="showSection('profile-section')"
+          >
+            <i class="fas fa-user w-6"></i>
+            <span>My Profile</span>
+          </a>
+        </nav>
+
+        <div class="pt-6">
+          <a
+            href="/logout"
+            class="flex items-center space-x-3 p-3 rounded hover:bg-red-600 transition-colors"
+          >
+            <i class="fas fa-sign-out-alt w-6"></i>
+            <span>Logout</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="flex-1">
+        <!-- Top Nav -->
+        <header class="bg-white shadow-sm">
+          <div class="flex items-center justify-between px-6 py-4">
+            <h2 class="text-xl font-semibold text-gray-800" id="page-title">
+              Dashboard Overview
+            </h2>
+            <div class="flex items-center space-x-4">
+              <!-- Availability Toggle -->
+              <form method="POST" action="/toggle-availability" class="inline">
+                <button
+                  type="submit"
+                  class="flex items-center space-x-2 px-3 py-1 rounded-full {{ 'bg-green-100 text-green-800' if donor.availability else 'bg-red-100 text-red-800' }}"
+                >
+                  <i class="fas fa-circle text-xs"></i>
+                  <span class="text-sm font-medium"
+                    >{{ 'Available' if donor.availability else 'Unavailable'
+                    }}</span
+                  >
+                </button>
+              </form>
+              <div class="flex items-center space-x-2">
+                <img
+                  src="https://ui-avatars.com/api/?name={{ donor.name }}&background=random"
+                  alt="{{ donor.name }}"
+                  class="w-8 h-8 rounded-full"
+                />
+                <span class="text-gray-700">{{ donor.name }}</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Dashboard Content -->
+        <main class="p-6">
+          <!-- Dashboard Overview Section -->
+          <div id="dashboard-section" class="section">
+            <!-- Stats Cards -->
+            <div
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
+            >
+              <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="bg-red-100 rounded-full p-3">
+                    <i class="fas fa-tint text-red-600 text-xl"></i>
+                  </div>
+                </div>
+                <h3 class="text-3xl font-bold text-gray-700">
+                  {{ total_donations }}
+                </h3>
+                <p class="text-gray-500">Total Donations</p>
+              </div>
+              <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="bg-blue-100 rounded-full p-3">
+                    <i
+                      class="fas fa-hand-holding-heart text-blue-600 text-xl"
+                    ></i>
+                  </div>
+                </div>
+                <h3 class="text-3xl font-bold text-gray-700">
+                  {{ compatible_requests|length }}
+                </h3>
+                <p class="text-gray-500">Matching Requests</p>
+              </div>
+              <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="bg-yellow-100 rounded-full p-3">
+                    <i class="fas fa-clock text-yellow-600 text-xl"></i>
+                  </div>
+                </div>
+                <h3 class="text-3xl font-bold text-gray-700">
+                  {{ pending_responses }}
+                </h3>
+                <p class="text-gray-500">Pending Responses</p>
+              </div>
+              <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div
+                    class="{{ 'bg-green-100' if donor.availability else 'bg-gray-100' }} rounded-full p-3"
+                  >
+                    <i
+                      class="fas fa-user-check {{ 'text-green-600' if donor.availability else 'text-gray-600' }} text-xl"
+                    ></i>
+                  </div>
+                </div>
+                <h3 class="text-lg font-bold text-gray-700">
+                  {{ donor.blood_group }}
+                </h3>
+                <p class="text-gray-500">Blood Type</p>
+              </div>
+            </div>
+
+            <!-- Quick Actions & Recent Activity -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Quick Actions -->
+              <div class="bg-white rounded-lg shadow">
+                <div class="p-6 border-b border-gray-100">
+                  <h3 class="text-lg font-semibold text-gray-800">
+                    Quick Actions
+                  </h3>
+                </div>
+                <div class="p-6">
+                  <a
+                    href="/add-donation"
+                    class="block w-full bg-red-600 text-white text-center py-3 px-4 rounded-lg hover:bg-red-700 transition-colors mb-3"
+                  >
+                    <i class="fas fa-plus mr-2"></i>Record New Donation
+                  </a>
+                  <a
+                    href="#requests-section"
+                    onclick="showSection('requests-section')"
+                    class="block w-full bg-blue-600 text-white text-center py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <i class="fas fa-search mr-2"></i>View Blood Requests
+                  </a>
+                </div>
+              </div>
+
+              <!-- Recent Donation History -->
+              <div class="bg-white rounded-lg shadow">
+                <div class="p-6 border-b border-gray-100">
+                  <h3 class="text-lg font-semibold text-gray-800">
+                    Recent Donations
+                  </h3>
+                </div>
+                <div class="p-6">
+                  {% if donation_history[:3] %} {% for donation in
+                  donation_history[:3] %}
+                  <div
+                    class="flex justify-between items-center py-3 border-b last:border-b-0"
+                  >
+                    <div>
+                      <p class="font-medium">{{ donation.blood_type }}</p>
+                      <p class="text-sm text-gray-500">
+                        {{ donation.donation_date.strftime('%B %d, %Y') }}
+                      </p>
+                    </div>
+                    <div class="text-right">
+                      <p class="text-sm font-medium">{{ donation.quantity }}</p>
+                      <span
+                        class="px-2 py-1 text-xs font-semibold {{ 'text-green-800 bg-green-100' if donation.status == 'Completed' else 'text-yellow-800 bg-yellow-100' }} rounded-full"
+                      >
+                        {{ donation.status }}
+                      </span>
+                    </div>
+                  </div>
+                  {% endfor %} {% else %}
+                  <p class="text-gray-500">No donations recorded yet.</p>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Donation History Section -->
+          <div id="donations-section" class="section hidden">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-lg font-semibold text-gray-800">
+                Donation History
+              </h3>
+              <a
+                href="/add-donation"
+                class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <i class="fas fa-plus mr-2"></i>Add New Donation
+              </a>
+            </div>
+
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full">
+                  <thead class="bg-gray-50 border-b">
+                    <tr>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Date
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Blood Type
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Quantity
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Location
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Status
+                      </th>
+                      <th
+                        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"
+                      >
+                        Notes
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100">
+                    {% for donation in donation_history %}
+                    <tr>
+                      <td class="px-6 py-4">
+                        {{ donation.donation_date.strftime('%m/%d/%Y') }}
+                      </td>
+                      <td class="px-6 py-4 font-medium">
+                        {{ donation.blood_type }}
+                      </td>
+                      <td class="px-6 py-4">{{ donation.quantity }}</td>
+                      <td class="px-6 py-4">{{ donation.location }}</td>
+                      <td class="px-6 py-4">
+                        <span
+                          class="px-2 py-1 text-xs font-semibold {{ 'text-green-800 bg-green-100' if donation.status == 'Completed' else 'text-yellow-800 bg-yellow-100' }} rounded-full"
+                        >
+                          {{ donation.status }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 text-sm text-gray-500">
+                        {{ donation.notes or '-' }}
+                      </td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% if not donation_history %}
+              <div class="p-8 text-center">
+                <i class="fas fa-tint text-4xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500">No donation history found.</p>
+                <a
+                  href="/add-donation"
+                  class="inline-block mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Record Your First Donation
+                </a>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Blood Requests Section -->
+          <div id="requests-section" class="section hidden">
+            <h3 class="text-lg font-semibold text-gray-800 mb-6">
+              Blood Requests Matching Your Type ({{ donor.blood_group }})
+            </h3>
+
+            <div class="space-y-4">
+              {% for request in compatible_requests %}
+              <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex justify-between items-start mb-4">
+                  <div>
+                    <h4 class="text-lg font-semibold text-gray-800">
+                      {{ request.blood_group_needed }} Blood Needed
+                    </h4>
+                    <p class="text-sm text-gray-600">
+                      {{ request.hospital_name }} • {{ request.hospital_location
+                      }}
+                    </p>
+                  </div>
+                  <span
+                    class="px-3 py-1 text-sm font-semibold {{ 'text-red-800 bg-red-100' if request.urgency == 'Critical' else 'text-orange-800 bg-orange-100' if request.urgency == 'High' else 'text-blue-800 bg-blue-100' }} rounded-full"
+                  >
+                    {{ request.urgency }} Priority
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <p class="text-sm text-gray-600">Quantity Needed</p>
+                    <p class="font-medium">{{ request.quantity_needed }}</p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600">Needed By</p>
+                    <p class="font-medium">
+                      {{ request.needed_by_date.strftime('%B %d, %Y') }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600">Contact Person</p>
+                    <p class="font-medium">{{ request.contact_person }}</p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600">Contact Number</p>
+                    <p class="font-medium">{{ request.contact_number }}</p>
+                  </div>
+                </div>
+
+                {% if request.additional_notes %}
+                <div class="mb-4">
+                  <p class="text-sm text-gray-600">Additional Notes</p>
+                  <p class="text-sm">{{ request.additional_notes }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Check if donor already responded -->
+                {% set responded = false %} {% for response in donor_responses
+                %} {% if response.request_id == request.id %} {% set responded =
+                true %}
+                <div class="bg-green-50 border border-green-200 rounded p-3">
+                  <p class="text-sm text-green-800">
+                    You responded on {{ response.response_date.strftime('%B %d,
+                    %Y') }} - Status: {{ response.status }}
+                  </p>
+                </div>
+                {% endif %} {% endfor %} {% if not responded %}
+                <form
+                  method="POST"
+                  action="/respond-to-request/{{ request.id }}"
+                  class="mt-4"
+                >
+                  <div class="flex gap-4">
+                    <input
+                      type="text"
+                      name="notes"
+                      placeholder="Add a note (optional)"
+                      class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                    <button
+                      type="submit"
+                      class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                      <i class="fas fa-hand-holding-heart mr-2"></i>Respond to
+                      Help
+                    </button>
+                  </div>
+                </form>
+                {% endif %}
+              </div>
+              {% endfor %} {% if not compatible_requests %}
+              <div class="bg-white rounded-lg shadow p-8 text-center">
+                <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+                <p class="text-gray-500">
+                  No blood requests matching your type ({{ donor.blood_group }})
+                  at the moment.
+                </p>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Profile Section -->
+          <div id="profile-section" class="section hidden">
+            <div class="bg-white rounded-lg shadow p-6">
+              <h3 class="text-lg font-semibold text-gray-800 mb-6">
+                My Profile
+              </h3>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Name</label
+                  >
+                  <p class="text-gray-900">{{ donor.name }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Email</label
+                  >
+                  <p class="text-gray-900">{{ donor.email }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Blood Group</label
+                  >
+                  <p class="text-gray-900 font-semibold">
+                    {{ donor.blood_group }}
+                  </p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Age</label
+                  >
+                  <p class="text-gray-900">{{ donor.age }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Gender</label
+                  >
+                  <p class="text-gray-900">{{ donor.gender }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Contact</label
+                  >
+                  <p class="text-gray-900">{{ donor.contact }}</p>
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Location</label
+                  >
+                  <p class="text-gray-900">{{ donor.location }}</p>
+                </div>
+              </div>
+
+              <div class="mt-6 pt-6 border-t border-gray-200">
+                <a
+                  href="/donor-profile"
+                  class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <i class="fas fa-edit mr-2"></i>Edit Profile
+                </a>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script>
+      function showSection(sectionId) {
+        // Hide all sections
+        const sections = document.querySelectorAll(".section");
+        sections.forEach((section) => section.classList.add("hidden"));
+
+        // Show selected section
+        document.getElementById(sectionId).classList.remove("hidden");
+
+        // Update page title
+        const titles = {
+          "dashboard-section": "Dashboard Overview",
+          "donations-section": "Donation History",
+          "requests-section": "Blood Requests",
+          "profile-section": "My Profile",
+        };
+        document.getElementById("page-title").textContent = titles[sectionId];
+
+        // Update URL hash
+        window.location.hash = sectionId;
+      }
+
+      // Show section based on URL hash on page load
+      window.addEventListener("load", function () {
+        const hash = window.location.hash.substring(1);
+        if (hash && document.getElementById(hash)) {
+          showSection(hash);
+        }
+      });
+    </script>
+  </body>
+</html>

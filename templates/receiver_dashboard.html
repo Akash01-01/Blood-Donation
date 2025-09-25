@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recipient Dashboard - Blood Donation System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body class="bg-gray-100">
+    <div class="min-h-screen flex">
+      <!-- Sidebar -->
+      <div class="bg-red-700 text-white w-64 py-6 px-4 flex flex-col">
+        <div class="flex items-center mb-8">
+          <i class="fas fa-user-injured text-2xl mr-2"></i>
+          <h1 class="text-xl font-bold">Recipient Dashboard</h1>
+        </div>
+
+        <!-- Role Switcher -->
+        <div class="mb-6 p-3 bg-red-600 rounded-lg">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-sm">
+              Current Role:
+              <span
+                class="font-semibold text-white bg-red-700 px-2 py-1 rounded"
+                >🩸 Recipient</span
+              >
+            </p>
+            <div class="text-xs text-red-100">
+              <i class="fas fa-hand-holding-heart"></i>
+            </div>
+          </div>
+          <form method="POST" action="/switch-role" class="inline w-full">
+            <input type="hidden" name="role" value="donor" />
+            <button
+              type="submit"
+              class="w-full text-xs bg-white text-red-700 px-3 py-2 rounded hover:bg-gray-100 transition-colors font-medium"
+              title="Switch to donor mode to help others in need"
+            >
+              <i class="fas fa-exchange-alt mr-1"></i> Switch to Donor Mode
+            </button>
+          </form>
+          <p class="text-xs text-red-100 mt-1 text-center">
+            Request blood when you need it
+          </p>
+        </div>
+
+        <nav class="flex-1">
+          <a
+            href="#dashboard-section"
+            class="flex items-center space-x-3 p-3 rounded hover:bg-red-600 transition-colors"
+            onclick="showSection('dashboard-section')"
+          >
+            <i class="fas fa-home w-6"></i>
+            <span>Dashboard</span>
+          </a>
+          <a
+            href="#requests-section"
+            class="flex items-center space-x-3 p-3 rounded hover:bg-red-600 transition-colors"
+            onclick="showSection('requests-section')"
+          >
+            <i class="fas fa-hand-holding-medical w-6"></i>
+            <span>My Requests</span>
+          </a>
+          <a
+            href="#search-section"
+            class="flex items-center space-x-3 p-3 rounded hover:bg-red-600 transition-colors"
+            onclick="showSection('search-section')"
+          >
+            <i class="fas fa-search w-6"></i>
+            <span>Search Donors</span>
+          </a>
+          <a
+            href="#profile-section"
+            class="flex items-center space-x-3 p-3 rounded hover:bg-red-600 transition-colors"
+            onclick="showSection('profile-section')"
+          >
+            <i class="fas fa-user w-6"></i>
+            <span>My Profile</span>
+          </a>
+        </nav>
+
+        <div class="pt-6">
+          <a
+            href="/logout"
+            class="flex items-center space-x-3 p-3 rounded hover:bg-red-600 transition-colors"
+          >
+            <i class="fas fa-sign-out-alt w-6"></i>
+            <span>Logout</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="flex-1">
+        <!-- Top Nav -->
+        <header class="bg-white shadow-sm">
+          <div class="flex items-center justify-between px-6 py-4">
+            <h2 class="text-xl font-semibold text-gray-800" id="page-title">
+              Dashboard Overview
+            </h2>
+            <div class="flex items-center space-x-4">
+              <div class="flex items-center space-x-2">
+                <img
+                  src="https://ui-avatars.com/api/?name={{ receiver.name }}&background=random"
+                  alt="{{ receiver.name }}"
+                  class="w-8 h-8 rounded-full"
+                />
+                <span class="text-gray-700">{{ receiver.name }}</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Dashboard Content -->
+        <main class="p-6">
+          <!-- Dashboard Overview Section -->
+          <div id="dashboard-section" class="section">
+            <!-- Stats Cards -->
+            <div
+              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6"
+            >
+              <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="bg-blue-100 rounded-full p-3">
+                    <i
+                      class="fas fa-hand-holding-medical text-blue-600 text-xl"
+                    ></i>
+                  </div>
+                </div>
+                <h3 class="text-3xl font-bold text-gray-700">
+                  {{ total_requests }}
+                </h3>
+                <p class="text-gray-500">Total Requests</p>
+              </div>
+              <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="bg-green-100 rounded-full p-3">
+                    <i class="fas fa-clock text-green-600 text-xl"></i>
+                  </div>
+                </div>
+                <h3 class="text-3xl font-bold text-gray-700">
+                  {{ active_requests }}
+                </h3>
+                <p class="text-gray-500">Active Requests</p>
+              </div>
+              <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="bg-yellow-100 rounded-full p-3">
+                    <i class="fas fa-reply text-yellow-600 text-xl"></i>
+                  </div>
+                </div>
+                <h3 class="text-3xl font-bold text-gray-700">
+                  {{ received_responses }}
+                </h3>
+                <p class="text-gray-500">Responses Received</p>
+              </div>
+              <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <div class="bg-red-100 rounded-full p-3">
+                    <i class="fas fa-map-marker-alt text-red-600 text-xl"></i>
+                  </div>
+                </div>
+                <h3 class="text-lg font-bold text-gray-700">
+                  {{ receiver.location[:10] }}...
+                </h3>
+                <p class="text-gray-500">Location</p>
+              </div>
+            </div>
+
+            <!-- Quick Actions & Recent Activity -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Quick Actions -->
+              <div class="bg-white rounded-lg shadow">
+                <div class="p-6 border-b border-gray-100">
+                  <h3 class="text-lg font-semibold text-gray-800">
+                    Quick Actions
+                  </h3>
+                </div>
+                <div class="p-6">
+                  <a
+                    href="/create-request"
+                    class="block w-full bg-red-600 text-white text-center py-3 px-4 rounded-lg hover:bg-red-700 transition-colors mb-3"
+                  >
+                    <i class="fas fa-plus mr-2"></i>Create Blood Request
+                  </a>
+                  <a
+                    href="#search-section"
+                    onclick="showSection('search-section')"
+                    class="block w-full bg-blue-600 text-white text-center py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <i class="fas fa-search mr-2"></i>Search Donors
+                  </a>
+                </div>
+              </div>
+
+              <!-- Recent Requests -->
+              <div class="bg-white rounded-lg shadow">
+                <div class="p-6 border-b border-gray-100">
+                  <h3 class="text-lg font-semibold text-gray-800">
+                    Recent Requests
+                  </h3>
+                </div>
+                <div class="p-6">
+                  {% if blood_requests[:3] %} {% for request in
+                  blood_requests[:3] %}
+                  <div
+                    class="flex justify-between items-center py-3 border-b last:border-b-0"
+                  >
+                    <div>
+                      <p class="font-medium">
+                        {{ request.blood_group_needed }} Blood
+                      </p>
+                      <p class="text-sm text-gray-500">
+                        {{ request.request_date.strftime('%B %d, %Y') }}
+                      </p>
+                    </div>
+                    <div class="text-right">
+                      <p class="text-sm font-medium">
+                        {{ request.quantity_needed }}
+                      </p>
+                      <span
+                        class="px-2 py-1 text-xs font-semibold {{ 'text-green-800 bg-green-100' if request.status == 'Active' else 'text-gray-800 bg-gray-100' }} rounded-full"
+                      >
+                        {{ request.status }}
+                      </span>
+                    </div>
+                  </div>
+                  {% endfor %} {% else %}
+                  <p class="text-gray-500">No blood requests yet.</p>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- My Requests Section -->
+          <div id="requests-section" class="section hidden">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="text-lg font-semibold text-gray-800">
+                My Blood Requests
+              </h3>
+              <a
+                href="/create-request"
+                class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+              >
+                <i class="fas fa-plus mr-2"></i>Create New Request
+              </a>
+            </div>
+
+            <div class="space-y-4">
+              {% for request in blood_requests %}
+              <div class="bg-white rounded-lg shadow p-6">
+                <div class="flex justify-between items-start mb-4">
+                  <div>
+                    <h4 class="text-lg font-semibold text-gray-800">
+                      {{ request.blood_group_needed }} Blood Request
+                    </h4>
+                    <p class="text-sm text-gray-600">
+                      {{ request.hospital_name }} • {{ request.hospital_location
+                      }}
+                    </p>
+                  </div>
+                  <div class="text-right">
+                    <span
+                      class="px-3 py-1 text-sm font-semibold {{ 'text-red-800 bg-red-100' if request.urgency == 'Critical' else 'text-orange-800 bg-orange-100' if request.urgency == 'High' else 'text-blue-800 bg-blue-100' }} rounded-full"
+                    >
+                      {{ request.urgency }} Priority
+                    </span>
+                    <p class="text-xs text-gray-500 mt-1">
+                      {{ request.request_date.strftime('%B %d, %Y') }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <p class="text-sm text-gray-600">Quantity Needed</p>
+                    <p class="font-medium">{{ request.quantity_needed }}</p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600">Needed By</p>
+                    <p class="font-medium">
+                      {{ request.needed_by_date.strftime('%B %d, %Y') }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-sm text-gray-600">Status</p>
+                    <span
+                      class="px-2 py-1 text-xs font-semibold {{ 'text-green-800 bg-green-100' if request.status == 'Active' else 'text-gray-800 bg-gray-100' }} rounded-full"
+                    >
+                      {{ request.status }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Show responses for this request -->
+                {% set request_responses = request.responses %} {% if
+                request_responses %}
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                  <h5 class="font-medium text-gray-800 mb-2">
+                    Donor Responses ({{ request_responses|length }})
+                  </h5>
+                  <div class="space-y-2">
+                    {% for response in request_responses %}
+                    <div class="bg-gray-50 rounded p-3">
+                      <div class="flex justify-between items-start">
+                        <div>
+                          <p class="font-medium">{{ response.donor.name }}</p>
+                          <p class="text-sm text-gray-600">
+                            {{ response.donor.location }} • {{
+                            response.donor.contact }}
+                          </p>
+                          {% if response.donor_notes %}
+                          <p class="text-sm text-gray-700 mt-1">
+                            {{ response.donor_notes }}
+                          </p>
+                          {% endif %}
+                        </div>
+                        <div class="text-right">
+                          <span
+                            class="px-2 py-1 text-xs font-semibold {{ 'text-green-800 bg-green-100' if response.status == 'Confirmed' else 'text-yellow-800 bg-yellow-100' }} rounded-full"
+                          >
+                            {{ response.status }}
+                          </span>
+                          <p class="text-xs text-gray-500 mt-1">
+                            {{ response.response_date.strftime('%m/%d/%Y') }}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% else %}
+                <div class="mt-4 pt-4 border-t border-gray-200">
+                  <p class="text-sm text-gray-500">No donor responses yet.</p>
+                </div>
+                {% endif %}
+              </div>
+              {% endfor %} {% if not blood_requests %}
+              <div class="bg-white rounded-lg shadow p-8 text-center">
+                <i
+                  class="fas fa-hand-holding-medical text-4xl text-gray-300 mb-4"
+                ></i>
+                <p class="text-gray-500 mb-4">
+                  You haven't created any blood requests yet.
+                </p>
+                <a
+                  href="/create-request"
+                  class="inline-block bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Create Your First Request
+                </a>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Search Donors Section -->
+          <div id="search-section" class="section hidden">
+            <h3 class="text-lg font-semibold text-gray-800 mb-6">
+              Search for Donors
+            </h3>
+
+            <!-- Search Form -->
+            <div class="bg-white rounded-lg shadow p-6 mb-6">
+              <form method="POST" action="/search-donors">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2"
+                      >Location</label
+                    >
+                    <input
+                      type="text"
+                      name="location"
+                      placeholder="Enter city or area"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2"
+                      >Blood Group</label
+                    >
+                    <select
+                      name="blood_group"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                    >
+                      <option value="">All Blood Groups</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                    </select>
+                  </div>
+                  <div class="flex items-end">
+                    <button
+                      type="submit"
+                      class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <i class="fas fa-search mr-2"></i>Search
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            <!-- Search Results Placeholder -->
+            <div class="bg-white rounded-lg shadow p-8 text-center">
+              <i class="fas fa-users text-4xl text-gray-300 mb-4"></i>
+              <p class="text-gray-500">
+                Use the search form above to find donors in your area.
+              </p>
+            </div>
+          </div>
+
+          <!-- Profile Section -->
+          <div id="profile-section" class="section hidden">
+            <div class="bg-white rounded-lg shadow p-6">
+              <h3 class="text-lg font-semibold text-gray-800 mb-6">
+                My Profile
+              </h3>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Name</label
+                  >
+                  <p class="text-gray-900">{{ receiver.name }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Email</label
+                  >
+                  <p class="text-gray-900">{{ receiver.email }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Contact</label
+                  >
+                  <p class="text-gray-900">{{ receiver.contact }}</p>
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-2"
+                    >Location</label
+                  >
+                  <p class="text-gray-900">{{ receiver.location }}</p>
+                </div>
+              </div>
+
+              <div class="mt-6 pt-6 border-t border-gray-200">
+                <a
+                  href="/receiver-profile"
+                  class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <i class="fas fa-edit mr-2"></i>Edit Profile
+                </a>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script>
+      function showSection(sectionId) {
+        // Hide all sections
+        const sections = document.querySelectorAll(".section");
+        sections.forEach((section) => section.classList.add("hidden"));
+
+        // Show selected section
+        document.getElementById(sectionId).classList.remove("hidden");
+
+        // Update page title
+        const titles = {
+          "dashboard-section": "Dashboard Overview",
+          "requests-section": "My Requests",
+          "search-section": "Search Donors",
+          "profile-section": "My Profile",
+        };
+        document.getElementById("page-title").textContent = titles[sectionId];
+
+        // Update URL hash
+        window.location.hash = sectionId;
+      }
+
+      // Show section based on URL hash on page load
+      window.addEventListener("load", function () {
+        const hash = window.location.hash.substring(1);
+        if (hash && document.getElementById(hash)) {
+          showSection(hash);
+        }
+      });
+    </script>
+  </body>
+</html>

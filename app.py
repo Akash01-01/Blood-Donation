@@ -29,6 +29,49 @@ class Receiver(db.Model):
     location = db.Column(db.String(200), nullable=False)
     contact = db.Column(db.String(20), nullable=False)
 
+# Donation History model
+class DonationHistory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    donor_id = db.Column(db.Integer, db.ForeignKey('donor.id'), nullable=False)
+    donation_date = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+    blood_type = db.Column(db.String(5), nullable=False)
+    quantity = db.Column(db.String(20), nullable=False)  # e.g., "450ml", "1 unit"
+    location = db.Column(db.String(200), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='Completed')  # Completed, Pending, Cancelled
+    notes = db.Column(db.Text)
+
+# Blood Request model
+class BloodRequest(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('receiver.id'), nullable=False)
+    blood_group_needed = db.Column(db.String(5), nullable=False)
+    quantity_needed = db.Column(db.String(20), nullable=False)
+    urgency = db.Column(db.String(20), nullable=False, default='Normal')  # Critical, High, Normal, Low
+    hospital_name = db.Column(db.String(200), nullable=False)
+    hospital_location = db.Column(db.String(200), nullable=False)
+    request_date = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+    needed_by_date = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='Active')  # Active, Fulfilled, Cancelled, Expired
+    contact_person = db.Column(db.String(100), nullable=False)
+    contact_number = db.Column(db.String(20), nullable=False)
+    additional_notes = db.Column(db.Text)
+    
+    # Relationship to get receiver info
+    receiver = db.relationship('Receiver', backref=db.backref('blood_requests', lazy=True))
+
+# Donation Response model (when donors respond to requests)
+class DonationResponse(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    request_id = db.Column(db.Integer, db.ForeignKey('blood_request.id'), nullable=False)
+    donor_id = db.Column(db.Integer, db.ForeignKey('donor.id'), nullable=False)
+    response_date = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+    status = db.Column(db.String(20), nullable=False, default='Pending')  # Pending, Confirmed, Completed, Cancelled
+    donor_notes = db.Column(db.Text)
+    
+    # Relationships
+    blood_request = db.relationship('BloodRequest', backref=db.backref('responses', lazy=True))
+    donor = db.relationship('Donor', backref=db.backref('donation_responses', lazy=True))
+
 # Admin model
 class Admin(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -104,6 +147,7 @@ def login():
         
         if user and check_password_hash(user.password, password):
             session['user_id'] = user.id
+            session['user_email'] = email  # Store email for role switching
             
             if donor:
                 session['role'] = 'donor'
@@ -122,13 +166,65 @@ def login():
 def donor_dashboard():
     if session.get('role') != 'donor':
         return redirect('/')
-    return f"<h1>Welcome Donor!</h1><p>Donor Dashboard coming soon...</p>"
+    
+    donor = Donor.query.get(session['user_id'])
+    if not donor:
+        return redirect('/logout')
+    
+    # Get donation history
+    donation_history = DonationHistory.query.filter_by(donor_id=donor.id).order_by(DonationHistory.donation_date.desc()).all()
+    
+    # Get active blood requests that match donor's blood type
+    compatible_requests = BloodRequest.query.filter_by(
+        blood_group_needed=donor.blood_group,
+        status='Active'
+    ).order_by(BloodRequest.needed_by_date.asc()).all()
+    
+    # Get donor's responses to requests
+    donor_responses = DonationResponse.query.filter_by(donor_id=donor.id).order_by(DonationResponse.response_date.desc()).all()
+    
+    # Calculate stats
+    total_donations = len(donation_history)
+    pending_responses = len([r for r in donor_responses if r.status == 'Pending'])
+    
+    return render_template('donor_dashboard.html', 
+                         donor=donor,
+                         donation_history=donation_history,
+                         compatible_requests=compatible_requests,
+                         donor_responses=donor_responses,
+                         total_donations=total_donations,
+                         pending_responses=pending_responses)
 
 @app.route('/receiver-dashboard')
 def receiver_dashboard():
     if session.get('role') != 'receiver':
         return redirect('/')
-    return f"<h1>Welcome Receiver!</h1><p><a href='/search-donors'>Search for Donors</a></p>"
+    
+    receiver = Receiver.query.get(session['user_id'])
+    if not receiver:
+        return redirect('/logout')
+    
+    # Get receiver's blood requests
+    blood_requests = BloodRequest.query.filter_by(receiver_id=receiver.id).order_by(BloodRequest.request_date.desc()).all()
+    
+    # Get responses to receiver's requests
+    request_responses = []
+    for request in blood_requests:
+        responses = DonationResponse.query.filter_by(request_id=request.id).all()
+        request_responses.extend(responses)
+    
+    # Calculate stats
+    active_requests = len([r for r in blood_requests if r.status == 'Active'])
+    total_requests = len(blood_requests)
+    received_responses = len(request_responses)
+    
+    return render_template('receiver_dashboard.html', 
+                         receiver=receiver,
+                         blood_requests=blood_requests,
+                         request_responses=request_responses,
+                         active_requests=active_requests,
+                         total_requests=total_requests,
+                         received_responses=received_responses)
 
 @app.route('/donor-profile', methods=['GET', 'POST'])
 def donor_profile():
@@ -212,15 +308,40 @@ def admin_login():
 def dashboard():
     return render_template('admin_dashboard.html')
 
-# Receiver: Search Donors by Location
+# Receiver: Search Donors by Location and Blood Group
 @app.route('/search-donors', methods=['GET', 'POST'])
 def search_donors():
     donors = []
     location = ''
+    blood_group = ''
+    
     if request.method == 'POST':
-        location = request.form['location']
-        donors = Donor.query.filter(Donor.location.ilike(f'%{location}%')).all()
-    return render_template('search_donors.html', donors=donors, location=location)
+        location = request.form.get('location', '')
+        blood_group = request.form.get('blood_group', '')
+        
+        # Build query based on filters
+        query = Donor.query.filter(Donor.availability == True)
+        
+        if location:
+            query = query.filter(Donor.location.ilike(f'%{location}%'))
+        
+        if blood_group:
+            query = query.filter(Donor.blood_group == blood_group)
+        
+        donors = query.all()
+    
+    # If accessed from receiver dashboard, return JSON for AJAX
+    if request.headers.get('Content-Type') == 'application/json':
+        return {
+            'donors': [{
+                'name': donor.name,
+                'blood_group': donor.blood_group,
+                'location': donor.location,
+                'contact': donor.contact
+            } for donor in donors]
+        }
+    
+    return render_template('search_donors.html', donors=donors, location=location, blood_group=blood_group)
 
 # Admin: Edit Donor
 @app.route('/admin/edit-donor/<int:donor_id>', methods=['GET', 'POST'])
@@ -275,6 +396,230 @@ def admin_delete_receiver(receiver_id):
     db.session.delete(receiver)
     db.session.commit()
     return redirect(url_for('admin_dashboard'))
+
+# Role switching route
+@app.route('/switch-role', methods=['POST'])
+def switch_role():
+    if 'user_id' not in session or 'user_email' not in session:
+        return redirect('/')
+    
+    new_role = request.form.get('role')
+    current_role = session.get('role')
+    user_email = session.get('user_email')
+    
+    # Get current user info
+    current_user = None
+    if current_role == 'donor':
+        current_user = Donor.query.get(session['user_id'])
+    elif current_role == 'receiver':
+        current_user = Receiver.query.get(session['user_id'])
+    
+    if not current_user:
+        return redirect('/logout')
+    
+    if new_role == 'donor':
+        # Check if donor profile exists
+        donor = Donor.query.filter_by(email=user_email).first()
+        if not donor:
+            # Create donor profile if switching from receiver
+            if current_role == 'receiver':
+                return redirect('/setup-donor-profile')
+        else:
+            session['role'] = 'donor'
+            session['user_id'] = donor.id
+            return redirect('/donor-dashboard')
+    
+    elif new_role == 'receiver':
+        # Check if receiver profile exists
+        receiver = Receiver.query.filter_by(email=user_email).first()
+        if not receiver:
+            # Create receiver profile if switching from donor
+            if current_role == 'donor':
+                return redirect('/setup-receiver-profile')
+        else:
+            session['role'] = 'receiver'
+            session['user_id'] = receiver.id
+            return redirect('/receiver-dashboard')
+    
+    # If switching is not possible, stay in current role
+    if current_role == 'donor':
+        return redirect('/donor-dashboard')
+    elif current_role == 'receiver':
+        return redirect('/receiver-dashboard')
+    else:
+        return redirect('/')
+
+# Setup donor profile for users switching from receiver
+@app.route('/setup-donor-profile', methods=['GET', 'POST'])
+def setup_donor_profile():
+    if 'user_email' not in session:
+        return redirect('/')
+    
+    if request.method == 'POST':
+        # Get current receiver info to copy basic details
+        receiver = Receiver.query.filter_by(email=session['user_email']).first()
+        
+        # Create new donor profile
+        donor = Donor(
+            name=receiver.name if receiver else request.form['name'],
+            email=session['user_email'],
+            password=receiver.password if receiver else '',
+            age=int(request.form['age']),
+            gender=request.form['gender'],
+            blood_group=request.form['blood_group'],
+            location=request.form['location'],
+            contact=request.form['contact']
+        )
+        
+        try:
+            db.session.add(donor)
+            db.session.commit()
+            session['role'] = 'donor'
+            session['user_id'] = donor.id
+            return redirect('/donor-dashboard')
+        except Exception as e:
+            return f"Error creating donor profile: {e}", 500
+    
+    # Get current user info to pre-fill form
+    current_user = Receiver.query.filter_by(email=session['user_email']).first()
+    return render_template('setup_donor_profile.html', user=current_user)
+
+# Setup receiver profile for users switching from donor
+@app.route('/setup-receiver-profile', methods=['GET', 'POST'])
+def setup_receiver_profile():
+    if 'user_email' not in session:
+        return redirect('/')
+    
+    if request.method == 'POST':
+        # Get current donor info to copy basic details
+        donor = Donor.query.filter_by(email=session['user_email']).first()
+        
+        # Create new receiver profile
+        receiver = Receiver(
+            name=donor.name if donor else request.form['name'],
+            email=session['user_email'],
+            password=donor.password if donor else '',
+            location=request.form['location'],
+            contact=request.form['contact']
+        )
+        
+        try:
+            db.session.add(receiver)
+            db.session.commit()
+            session['role'] = 'receiver'
+            session['user_id'] = receiver.id
+            return redirect('/receiver-dashboard')
+        except Exception as e:
+            return f"Error creating receiver profile: {e}", 500
+    
+    # Get current user info to pre-fill form
+    current_user = Donor.query.filter_by(email=session['user_email']).first()
+    return render_template('setup_receiver_profile.html', user=current_user)
+
+# Check if user can switch roles
+@app.route('/check-role-availability/<role>')
+def check_role_availability(role):
+    if 'user_email' not in session:
+        return {'available': False, 'message': 'Not logged in'}
+    
+    user_email = session['user_email']
+    
+    if role == 'donor':
+        donor = Donor.query.filter_by(email=user_email).first()
+        return {
+            'available': donor is not None,
+            'message': 'Donor profile exists' if donor else 'Need to setup donor profile'
+        }
+    elif role == 'receiver':
+        receiver = Receiver.query.filter_by(email=user_email).first()
+        return {
+            'available': receiver is not None,
+            'message': 'Recipient profile exists' if receiver else 'Need to setup recipient profile'
+        }
+    
+    return {'available': False, 'message': 'Invalid role'}
+
+# Add donation history
+@app.route('/add-donation', methods=['GET', 'POST'])
+def add_donation():
+    if session.get('role') != 'donor':
+        return redirect('/')
+    
+    if request.method == 'POST':
+        donation = DonationHistory(
+            donor_id=session['user_id'],
+            blood_type=request.form['blood_type'],
+            quantity=request.form['quantity'],
+            location=request.form['location'],
+            status=request.form.get('status', 'Completed'),
+            notes=request.form.get('notes', '')
+        )
+        db.session.add(donation)
+        db.session.commit()
+        return redirect('/donor-dashboard')
+    
+    donor = Donor.query.get(session['user_id'])
+    return render_template('add_donation.html', donor=donor)
+
+# Create blood request
+@app.route('/create-request', methods=['GET', 'POST'])
+def create_request():
+    if session.get('role') != 'receiver':
+        return redirect('/')
+    
+    if request.method == 'POST':
+        from datetime import datetime
+        blood_request = BloodRequest(
+            receiver_id=session['user_id'],
+            blood_group_needed=request.form['blood_group_needed'],
+            quantity_needed=request.form['quantity_needed'],
+            urgency=request.form['urgency'],
+            hospital_name=request.form['hospital_name'],
+            hospital_location=request.form['hospital_location'],
+            needed_by_date=datetime.strptime(request.form['needed_by_date'], '%Y-%m-%d'),
+            contact_person=request.form['contact_person'],
+            contact_number=request.form['contact_number'],
+            additional_notes=request.form.get('additional_notes', '')
+        )
+        db.session.add(blood_request)
+        db.session.commit()
+        return redirect('/receiver-dashboard')
+    
+    return render_template('create_request.html')
+
+# Respond to blood request
+@app.route('/respond-to-request/<int:request_id>', methods=['POST'])
+def respond_to_request(request_id):
+    if session.get('role') != 'donor':
+        return redirect('/')
+    
+    # Check if donor already responded
+    existing_response = DonationResponse.query.filter_by(
+        request_id=request_id,
+        donor_id=session['user_id']
+    ).first()
+    
+    if not existing_response:
+        response = DonationResponse(
+            request_id=request_id,
+            donor_id=session['user_id'],
+            donor_notes=request.form.get('notes', '')
+        )
+        db.session.add(response)
+        db.session.commit()
+    
+    return redirect('/donor-dashboard')
+
+# Update donation availability
+@app.route('/toggle-availability', methods=['POST'])
+def toggle_availability():
+    if session.get('role') != 'donor':
+        return redirect('/')
+    
+    donor = Donor.query.get(session['user_id'])
+    donor.availability = not donor.availability
+    db.session.commit()
+    return redirect('/donor-dashboard')
 
 # Function to create default admin (call this once)
 def create_default_admin():

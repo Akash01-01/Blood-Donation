@@ -26,7 +26,12 @@ with app.app_context():
     db.session.commit()
     
     print("Database 'blood_finder.db' created successfully!")
-    print("Tables created: Donor, Receiver, Admin")
+    print("Tables created: Donor, Receiver, Admin, DonationHistory, BloodRequest, DonationResponse")
     print("Default admin created:")
     print("Email: admin@bloodfinder.com")
     print("Password: admin123")
+    print("Enhanced features:")
+    print("- Role switching between Donor and Recipient")
+    print("- Donation history tracking")
+    print("- Blood request management")
+    print("- Donation response system")

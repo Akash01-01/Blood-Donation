@@ -3,49 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Find Nearby Donors</title>
+    <title>Find Nearby Donors - Blood Donation System</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <div class="max-w-2xl mx-auto py-10">
-        <h1 class="text-3xl font-bold text-center text-red-700 mb-8">Find Nearby Blood Donors</h1>
-        <form method="POST" class="flex flex-col md:flex-row gap-4 mb-8">
-            <input type="text" name="location" placeholder="Enter your location (city, state, pincode)" value="{{ location }}" class="flex-1 px-4 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500">
-            <button type="submit" class="bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700">Search</button>
-        </form>
-        {% if donors %}
-        <div class="bg-white rounded shadow p-6">
-            <h2 class="text-xl font-semibold mb-4">Matching Donors</h2>
-            <table class="w-full">
-                <thead>
-                    <tr class="bg-gray-50">
-                        <th class="py-2 px-4 text-left">Name</th>
-                        <th class="py-2 px-4 text-left">Blood Group</th>
-                        <th class="py-2 px-4 text-left">Location</th>
-                        <th class="py-2 px-4 text-left">Contact</th>
-                        <th class="py-2 px-4 text-left">Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for donor in donors %}
-                    <tr class="border-b">
-                        <td class="py-2 px-4">{{ donor.name }}</td>
-                        <td class="py-2 px-4">{{ donor.blood_group }}</td>
-                        <td class="py-2 px-4">{{ donor.location }}</td>
-                        <td class="py-2 px-4">{{ donor.contact }}</td>
-                        <td class="py-2 px-4">
-                            <span class="px-2 py-1 rounded text-xs font-semibold {{ 'bg-green-100 text-green-800' if donor.availability else 'bg-red-100 text-red-800' }}">
-                                {{ 'Available' if donor.availability else 'Unavailable' }}
-                            </span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-droplet text-2xl text-red-600 mr-3"></i>
+                    <h1 class="text-2xl font-bold text-gray-900">Find Nearby Donors</h1>
+                </div>
+                <a href="/receiver-dashboard" class="text-red-600 hover:text-red-800 font-medium">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+                </a>
+            </div>
         </div>
-        {% elif location %}
-        <div class="bg-white rounded shadow p-6 text-center text-gray-600">
-            No donors found for <span class="font-semibold">{{ location }}</span>.
+    </header>
+
+    <div class="max-w-6xl mx-auto py-8 px-4">
+        <!-- Search Form -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Search Filters</h2>
+            <form method="POST" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                    <input type="text" name="location" placeholder="Enter city, state, or pincode" 
+                           value="{{ location }}" 
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Blood Group</label>
+                    <select name="blood_group" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                        <option value="">All Blood Groups</option>
+                        <option value="A+" {{ 'selected' if blood_group == 'A+' }}>A+</option>
+                        <option value="A-" {{ 'selected' if blood_group == 'A-' }}>A-</option>
+                        <option value="B+" {{ 'selected' if blood_group == 'B+' }}>B+</option>
+                        <option value="B-" {{ 'selected' if blood_group == 'B-' }}>B-</option>
+                        <option value="O+" {{ 'selected' if blood_group == 'O+' }}>O+</option>
+                        <option value="O-" {{ 'selected' if blood_group == 'O-' }}>O-</option>
+                        <option value="AB+" {{ 'selected' if blood_group == 'AB+' }}>AB+</option>
+                        <option value="AB-" {{ 'selected' if blood_group == 'AB-' }}>AB-</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="w-full bg-red-600 text-white py-2 px-6 rounded-lg hover:bg-red-700 transition-colors">
+                        <i class="fas fa-search mr-2"></i>Search Donors
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Search Results -->
+        {% if donors %}
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-800">
+                        Found {{ donors|length }} Available Donor{{ 's' if donors|length != 1 }}
+                    </h2>
+                    {% if location or blood_group %}
+                    <div class="text-sm text-gray-600">
+                        Filters: 
+                        {% if location %}<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">{{ location }}</span>{% endif %}
+                        {% if blood_group %}<span class="bg-red-100 text-red-800 px-2 py-1 rounded ml-1">{{ blood_group }}</span>{% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Donor</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Blood Group</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for donor in donors %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <img class="h-10 w-10 rounded-full" src="https://ui-avatars.com/api/?name={{ donor.name }}&background=random" alt="{{ donor.name }}">
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">{{ donor.name }}</div>
+                                        <div class="text-sm text-gray-500">Age: {{ donor.age }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    {{ donor.blood_group }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-900">{{ donor.location }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-900">
+                                <i class="fas fa-phone mr-1 text-gray-400"></i>{{ donor.contact }}
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ 'bg-green-100 text-green-800' if donor.availability else 'bg-red-100 text-red-800' }}">
+                                    <i class="fas fa-circle text-xs mr-1"></i>
+                                    {{ 'Available' if donor.availability else 'Unavailable' }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm">
+                                {% if donor.availability %}
+                                <a href="tel:{{ donor.contact }}" class="text-red-600 hover:text-red-900 font-medium">
+                                    <i class="fas fa-phone mr-1"></i>Contact
+                                </a>
+                                {% else %}
+                                <span class="text-gray-400">Unavailable</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Blood Compatibility Guide -->
+        <div class="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <h3 class="text-lg font-semibold text-blue-900 mb-4">
+                <i class="fas fa-info-circle mr-2"></i>Blood Compatibility Guide
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                    <h4 class="font-medium text-blue-800 mb-2">Universal Donors:</h4>
+                    <p class="text-blue-700">O- can donate to all blood types</p>
+                    <p class="text-blue-700">O+ can donate to all positive blood types</p>
+                </div>
+                <div>
+                    <h4 class="font-medium text-blue-800 mb-2">Universal Recipients:</h4>
+                    <p class="text-blue-700">AB+ can receive from all blood types</p>
+                    <p class="text-blue-700">AB- can receive from all negative blood types</p>
+                </div>
+            </div>
+        </div>
+        
+        {% elif location or blood_group %}
+        <div class="bg-white rounded-lg shadow-lg p-8 text-center">
+            <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">No Donors Found</h3>
+            <p class="text-gray-600 mb-4">
+                No available donors found for 
+                {% if location and blood_group %}
+                    <span class="font-semibold">{{ blood_group }}</span> blood group in <span class="font-semibold">{{ location }}</span>
+                {% elif location %}
+                    location: <span class="font-semibold">{{ location }}</span>
+                {% elif blood_group %}
+                    <span class="font-semibold">{{ blood_group }}</span> blood group
+                {% endif %}
+            </p>
+            <div class="space-y-2">
+                <p class="text-sm text-gray-500">Try adjusting your search criteria or</p>
+                <a href="/create-request" class="inline-block bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+                    <i class="fas fa-plus mr-2"></i>Create a Blood Request
+                </a>
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white rounded-lg shadow-lg p-8 text-center">
+            <i class="fas fa-users text-4xl text-gray-300 mb-4"></i>
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Find Blood Donors</h3>
+            <p class="text-gray-600">Use the search form above to find available blood donors in your area.</p>
         </div>
         {% endif %}
     </div>

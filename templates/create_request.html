@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create Blood Request - Blood Donation System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body class="bg-gray-100">
+    <div
+      class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8"
+    >
+      <div class="max-w-2xl w-full space-y-8">
+        <!-- Header -->
+        <div class="text-center">
+          <i class="fas fa-hand-holding-medical text-4xl text-red-600 mb-4"></i>
+          <h2 class="text-3xl font-bold text-gray-900">Create Blood Request</h2>
+          <p class="mt-2 text-gray-600">
+            Request blood from available donors in your area
+          </p>
+        </div>
+
+        <!-- Form -->
+        <div class="bg-white rounded-lg shadow-lg p-8">
+          <form method="POST" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label
+                  for="blood_group_needed"
+                  class="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  <i class="fas fa-droplet mr-1 text-red-600"></i>Blood Group
+                  Needed *
+                </label>
+                <select
+                  name="blood_group_needed"
+                  id="blood_group_needed"
+                  required
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="">Select Blood Group</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                </select>
+              </div>
+
+              <div>
+                <label
+                  for="quantity_needed"
+                  class="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  <i class="fas fa-flask mr-1 text-red-600"></i>Quantity Needed
+                  *
+                </label>
+                <select
+                  name="quantity_needed"
+                  id="quantity_needed"
+                  required
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="">Select Quantity</option>
+                  <option value="1 unit (450ml)">1 unit (450ml)</option>
+                  <option value="2 units (900ml)">2 units (900ml)</option>
+                  <option value="3 units (1350ml)">3 units (1350ml)</option>
+                  <option value="4 units (1800ml)">4 units (1800ml)</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label
+                  for="urgency"
+                  class="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  <i class="fas fa-exclamation-triangle mr-1 text-red-600"></i
+                  >Urgency Level *
+                </label>
+                <select
+                  name="urgency"
+                  id="urgency"
+                  required
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="">Select Urgency</option>
+                  <option value="Critical" class="text-red-600">
+                    Critical (Life-threatening)
+                  </option>
+                  <option value="High" class="text-orange-600">
+                    High (Within 24 hours)
+                  </option>
+                  <option value="Normal" class="text-blue-600">
+                    Normal (Within a week)
+                  </option>
+                  <option value="Low" class="text-green-600">
+                    Low (When available)
+                  </option>
+                </select>
+              </div>
+
+              <div>
+                <label
+                  for="needed_by_date"
+                  class="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  <i class="fas fa-calendar mr-1 text-red-600"></i>Needed By
+                  Date *
+                </label>
+                <input
+                  type="date"
+                  name="needed_by_date"
+                  id="needed_by_date"
+                  required
+                  min="{{ (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d') }}"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label
+                  for="hospital_name"
+                  class="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  <i class="fas fa-hospital mr-1 text-red-600"></i
+                  >Hospital/Medical Center *
+                </label>
+                <input
+                  type="text"
+                  name="hospital_name"
+                  id="hospital_name"
+                  required
+                  placeholder="Hospital or medical center name"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                />
+              </div>
+
+              <div>
+                <label
+                  for="hospital_location"
+                  class="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  <i class="fas fa-map-marker-alt mr-1 text-red-600"></i
+                  >Hospital Location *
+                </label>
+                <input
+                  type="text"
+                  name="hospital_location"
+                  id="hospital_location"
+                  required
+                  placeholder="Complete address of the hospital"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label
+                  for="contact_person"
+                  class="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  <i class="fas fa-user mr-1 text-red-600"></i>Contact Person *
+                </label>
+                <input
+                  type="text"
+                  name="contact_person"
+                  id="contact_person"
+                  required
+                  placeholder="Primary contact person name"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                />
+              </div>
+
+              <div>
+                <label
+                  for="contact_number"
+                  class="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  <i class="fas fa-phone mr-1 text-red-600"></i>Contact Number *
+                </label>
+                <input
+                  type="tel"
+                  name="contact_number"
+                  id="contact_number"
+                  required
+                  placeholder="Phone number for contact"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label
+                for="additional_notes"
+                class="block text-sm font-medium text-gray-700 mb-2"
+              >
+                <i class="fas fa-sticky-note mr-1 text-red-600"></i>Additional
+                Information
+              </label>
+              <textarea
+                name="additional_notes"
+                id="additional_notes"
+                rows="4"
+                placeholder="Any additional information about the patient, medical condition, or special requirements..."
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              ></textarea>
+            </div>
+
+            <!-- Important Notice -->
+            <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <i class="fas fa-exclamation-triangle text-yellow-400"></i>
+                </div>
+                <div class="ml-3">
+                  <p class="text-sm text-yellow-700">
+                    <strong>Important:</strong> Please ensure all information is
+                    accurate. Donors will use this information to contact you
+                    and arrange the donation.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex gap-4">
+              <button
+                type="submit"
+                class="flex-1 bg-red-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-red-700 transition-colors"
+              >
+                <i class="fas fa-paper-plane mr-2"></i>Create Request
+              </button>
+              <a
+                href="/receiver-dashboard"
+                class="flex-1 bg-gray-300 text-gray-700 py-3 px-4 rounded-lg font-semibold text-center hover:bg-gray-400 transition-colors"
+              >
+                <i class="fas fa-times mr-2"></i>Cancel
+              </a>
+            </div>
+          </form>
+        </div>
+
+        <!-- Back Link -->
+        <div class="text-center">
+          <a
+            href="/receiver-dashboard"
+            class="text-red-600 hover:text-red-800 text-sm font-medium"
+          >
+            <i class="fas fa-arrow-left mr-1"></i>Back to Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Set minimum date to tomorrow
+      document.addEventListener("DOMContentLoaded", function () {
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowString = tomorrow.toISOString().split("T")[0];
+        document.getElementById("needed_by_date").min = tomorrowString;
+      });
+    </script>
+  </body>
+</html>
