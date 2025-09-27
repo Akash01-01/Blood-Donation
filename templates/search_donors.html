@@ -71,9 +71,11 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Search Radius</label>
                         <select name="radius" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500">
+                            <option value="2" {{ 'selected' if radius == 2 }}>Within 2 km</option>
                             <option value="5" {{ 'selected' if radius == 5 }}>Within 5 km</option>
                             <option value="10" {{ 'selected' if radius == 10 }}>Within 10 km</option>
-                            <option value="20" {{ 'selected' if radius == 20 }}>Within 20 km</option>
+                            <option value="15" {{ 'selected' if radius == 15 }}>Within 15 km</option>
+                            <option value="25" {{ 'selected' if radius == 25 }}>Within 25 km</option>
                             <option value="50" {{ 'selected' if radius == 50 }}>Within 50 km</option>
                             <option value="100" {{ 'selected' if radius == 100 }}>Within 100 km</option>
                         </select>
@@ -89,10 +91,13 @@
                 </div>
                 
                 <!-- Location Detection Info -->
-                <div id="location-info" class="hidden bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <div class="flex items-center">
-                        <i class="fas fa-map-marker-alt text-blue-600 mr-2"></i>
-                        <span class="text-sm text-blue-800">Using your current location for accurate distance calculation</span>
+                <div id="location-info" class="hidden bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fas fa-satellite text-green-600 mr-2"></i>
+                            <span class="text-sm text-green-800 font-medium">GPS Location Active - Distance search enabled</span>
+                        </div>
+                        <span class="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">Accurate results</span>
                     </div>
                 </div>
             </form>
@@ -106,11 +111,12 @@
                     <h2 class="text-lg font-semibold text-gray-800">
                         Found {{ donors|length }} Available Donor{{ 's' if donors|length != 1 }}
                     </h2>
-                    {% if location or blood_group %}
+                    {% if location or blood_group or show_distance %}
                     <div class="text-sm text-gray-600">
                         Filters: 
-                        {% if location %}<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">{{ location }}</span>{% endif %}
-                        {% if blood_group %}<span class="bg-red-100 text-red-800 px-2 py-1 rounded ml-1">{{ blood_group }}</span>{% endif %}
+                        {% if location %}<span class="bg-blue-100 text-blue-800 px-2 py-1 rounded">📍 {{ location }}</span>{% endif %}
+                        {% if blood_group %}<span class="bg-red-100 text-red-800 px-2 py-1 rounded ml-1">🩸 {{ blood_group }}</span>{% endif %}
+                        {% if show_distance %}<span class="bg-green-100 text-green-800 px-2 py-1 rounded ml-1">📏 Within {{ radius }} km</span>{% endif %}
                     </div>
                     {% endif %}
                 </div>
@@ -149,9 +155,13 @@
                                 <div>
                                     <i class="fas fa-map-marker-alt mr-1 text-gray-400"></i>{{ donor.location }}
                                 </div>
-                                {% if show_distance and donor.distance is defined %}
+                                {% if show_distance and donor.distance is defined and donor.distance is not none %}
                                 <div class="text-xs text-green-600 font-medium mt-1">
                                     <i class="fas fa-route mr-1"></i>{{ donor.distance }} km away
+                                </div>
+                                {% elif show_distance and donor.distance is none %}
+                                <div class="text-xs text-blue-600 font-medium mt-1">
+                                    <i class="fas fa-map-marker-alt mr-1"></i>Location match
                                 </div>
                                 {% endif %}
                             </td>
@@ -166,9 +176,17 @@
                             </td>
                             <td class="px-6 py-4 text-sm">
                                 {% if donor.availability %}
-                                <a href="tel:{{ donor.contact }}" class="text-red-600 hover:text-red-900 font-medium">
-                                    <i class="fas fa-phone mr-1"></i>Contact
-                                </a>
+                                <div class="flex space-x-2">
+                                    <a href="tel:{{ donor.contact }}" class="text-blue-600 hover:text-blue-900 font-medium">
+                                        <i class="fas fa-phone mr-1"></i>Call
+                                    </a>
+                                    {% if current_receiver %}
+                                    <a href="/send-request-to-donor/{{ donor.id }}" 
+                                       class="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition-colors">
+                                        <i class="fas fa-paper-plane mr-1"></i>Send Request
+                                    </a>
+                                    {% endif %}
+                                </div>
                                 {% else %}
                                 <span class="text-gray-400">Unavailable</span>
                                 {% endif %}
@@ -204,16 +222,20 @@
             <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
             <h3 class="text-lg font-semibold text-gray-900 mb-2">No Donors Found</h3>
             <p class="text-gray-600 mb-4">
-                No available donors found for 
-                {% if location and blood_group %}
-                    <span class="font-semibold">{{ blood_group }}</span> blood group in <span class="font-semibold">{{ location }}</span>
-                {% elif location %}
-                    location: <span class="font-semibold">{{ location }}</span>
-                {% elif blood_group %}
-                    <span class="font-semibold">{{ blood_group }}</span> blood group
-                {% endif %}
+                No available donors found
+                {% if blood_group %} for <span class="font-semibold">{{ blood_group }}</span> blood group{% endif %}
+                {% if location %} in <span class="font-semibold">{{ location }}</span>{% endif %}
+                {% if show_distance %} within <span class="font-semibold">{{ radius }} km</span>{% endif %}
             </p>
-            <div class="space-y-2">
+            <div class="space-y-3">
+                {% if show_distance %}
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <p class="text-sm text-yellow-800">
+                        <i class="fas fa-lightbulb mr-1"></i>
+                        <strong>Tip:</strong> Try increasing your search radius to {{ radius * 2 }} km or more to find more donors.
+                    </p>
+                </div>
+                {% endif %}
                 <p class="text-sm text-gray-500">Try adjusting your search criteria or</p>
                 <a href="/create-request" class="inline-block bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
                     <i class="fas fa-plus mr-2"></i>Create a Blood Request
@@ -259,8 +281,11 @@
                         // Get human-readable address
                         reverseGeocode(lat, lon);
                         
-                        locationStatus.textContent = 'Location detected successfully!';
-                        locationStatus.className = 'mt-1 text-xs text-green-600';
+                        locationStatus.innerHTML = `
+                            <i class="fas fa-check-circle mr-1"></i>
+                            GPS location detected! Distance search enabled.
+                        `;
+                        locationStatus.className = 'mt-1 text-xs text-green-600 font-medium';
                     },
                     function(error) {
                         let errorMsg = '';

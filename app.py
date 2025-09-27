@@ -4,7 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
@@ -135,6 +135,11 @@ class BloodRequest(db.Model):
     contact_number = db.Column(db.String(20), nullable=False)
     additional_notes = db.Column(db.Text)
     
+    # New fields for "requesting for" functionality
+    requesting_for = db.Column(db.String(20), nullable=False, default='myself')  # 'myself' or 'someone_else'
+    patient_name = db.Column(db.String(100))  # Only filled when requesting_for = 'someone_else'
+    patient_relation = db.Column(db.String(50))  # Only filled when requesting_for = 'someone_else'
+    
     # Relationship to get receiver info
     receiver = db.relationship('Receiver', backref=db.backref('blood_requests', lazy=True))
 
@@ -144,8 +149,10 @@ class DonationResponse(db.Model):
     request_id = db.Column(db.Integer, db.ForeignKey('blood_request.id'), nullable=False)
     donor_id = db.Column(db.Integer, db.ForeignKey('donor.id'), nullable=False)
     response_date = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
-    status = db.Column(db.String(20), nullable=False, default='Pending')  # Pending, Confirmed, Completed, Cancelled
+    status = db.Column(db.String(20), nullable=False, default='Pending')  # Pending, Accepted, Rejected, Confirmed, Completed, Cancelled, Declined
     donor_notes = db.Column(db.Text)
+    receiver_notes = db.Column(db.Text)  # Notes from receiver when managing responses
+    scheduled_date = db.Column(db.Date, nullable=True)  # Date when donor plans to donate
     
     # Relationships
     blood_request = db.relationship('BloodRequest', backref=db.backref('responses', lazy=True))
@@ -270,7 +277,7 @@ def donor_dashboard():
     if session.get('role') != 'donor':
         return redirect('/')
     
-    donor = Donor.query.get(session['user_id'])
+    donor = db.session.get(Donor, session['user_id'])
     if not donor:
         return redirect('/logout')
     
@@ -278,13 +285,52 @@ def donor_dashboard():
     donation_history = DonationHistory.query.filter_by(donor_id=donor.id).order_by(DonationHistory.donation_date.desc()).all()
     
     # Get active blood requests that match donor's blood type
-    compatible_requests = BloodRequest.query.filter_by(
-        blood_group_needed=donor.blood_group,
-        status='Active'
-    ).order_by(BloodRequest.needed_by_date.asc()).all()
+    # Logic: Show requests where this donor CAN donate to the requested blood type
+    compatible_blood_groups = [donor.blood_group]  # Always include exact match
     
-    # Get donor's responses to requests
+    # Add blood type compatibility rules - what blood types can this donor donate TO
+    if donor.blood_group == 'O-':
+        # O- is universal donor, can donate to anyone
+        compatible_blood_groups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+    elif donor.blood_group == 'O+':
+        # O+ can donate to O+, A+, B+, AB+
+        compatible_blood_groups = ['O+', 'A+', 'B+', 'AB+']
+    elif donor.blood_group == 'A-':
+        # A- can donate to A-, A+, AB-, AB+
+        compatible_blood_groups = ['A-', 'A+', 'AB-', 'AB+']
+    elif donor.blood_group == 'A+':
+        # A+ can donate to A+, AB+
+        compatible_blood_groups = ['A+', 'AB+']
+    elif donor.blood_group == 'B-':
+        # B- can donate to B-, B+, AB-, AB+
+        compatible_blood_groups = ['B-', 'B+', 'AB-', 'AB+']
+    elif donor.blood_group == 'B+':
+        # B+ can donate to B+, AB+
+        compatible_blood_groups = ['B+', 'AB+']
+    elif donor.blood_group == 'AB-':
+        # AB- can donate to AB-, AB+
+        compatible_blood_groups = ['AB-', 'AB+']
+    elif donor.blood_group == 'AB+':
+        # AB+ can only donate to AB+
+        compatible_blood_groups = ['AB+']
+    
+    # Get donor's responses to requests first
     donor_responses = DonationResponse.query.filter_by(donor_id=donor.id).order_by(DonationResponse.response_date.desc()).all()
+    
+    # Get request IDs that this donor has already responded to
+    responded_request_ids = [response.request_id for response in donor_responses]
+    
+    # Get compatible requests excluding those the donor has already responded to
+    query = BloodRequest.query.filter(
+        BloodRequest.blood_group_needed.in_(compatible_blood_groups),
+        BloodRequest.status == 'Active'
+    )
+    
+    # Exclude requests that the donor has already responded to (accepted/declined/etc.)
+    if responded_request_ids:
+        query = query.filter(~BloodRequest.id.in_(responded_request_ids))
+    
+    compatible_requests = query.order_by(BloodRequest.urgency.desc(), BloodRequest.needed_by_date.asc()).all()
     
     # Calculate stats
     total_donations = len(donation_history)
@@ -296,14 +342,16 @@ def donor_dashboard():
                          compatible_requests=compatible_requests,
                          donor_responses=donor_responses,
                          total_donations=total_donations,
-                         pending_responses=pending_responses)
+                         pending_responses=pending_responses,
+                         current_date=datetime.now().date(),
+                         timedelta=timedelta)
 
 @app.route('/receiver-dashboard')
 def receiver_dashboard():
     if session.get('role') != 'receiver':
         return redirect('/')
     
-    receiver = Receiver.query.get(session['user_id'])
+    receiver = db.session.get(Receiver, session['user_id'])
     if not receiver:
         return redirect('/logout')
     
@@ -339,7 +387,7 @@ def donor_profile():
         contact = request.form['contact']
         
         # Update existing donor record
-        donor = Donor.query.get(session['user_id'])
+        donor = db.session.get(Donor, session['user_id'])
         donor.age = age
         donor.gender = gender
         donor.blood_group = blood_group
@@ -356,7 +404,7 @@ def receiver_profile():
         contact = request.form['contact']
         
         # Update existing receiver record
-        receiver = Receiver.query.get(session['user_id'])
+        receiver = db.session.get(Receiver, session['user_id'])
         receiver.location = location
         receiver.contact = contact
         db.session.commit()
@@ -429,6 +477,11 @@ def search_donors():
         user_lat = request.form.get('user_lat')
         user_lon = request.form.get('user_lon')
         
+        # Debug: Log the received parameters
+        print(f"Search params: location='{location}', blood_group='{blood_group}', radius={radius}km")
+        if user_lat and user_lon:
+            print(f"GPS coordinates: lat={user_lat}, lon={user_lon}")
+        
         # Start with base query - only available donors
         query = Donor.query.filter(Donor.availability == True)
         
@@ -448,8 +501,9 @@ def search_donors():
                 recipient_lat = float(user_lat)
                 recipient_lon = float(user_lon)
                 show_distance = True
+                print(f"Using GPS coordinates: {recipient_lat}, {recipient_lon}")
             except:
-                pass
+                print("Failed to parse GPS coordinates")
         
         # Priority 2: Geocode text location if no GPS coordinates
         elif location:
@@ -458,10 +512,23 @@ def search_donors():
                 recipient_lat = geocode_result['latitude']
                 recipient_lon = geocode_result['longitude']
                 show_distance = True
+            else:
+                # Fallback: Simple text-based location search if geocoding fails
+                location_lower = location.lower().strip()
+                filtered_donors = []
+                for donor in donors:
+                    donor_location_lower = donor.location.lower().strip()
+                    # Check if search location is contained in donor location or vice versa
+                    if (location_lower in donor_location_lower or 
+                        donor_location_lower in location_lower or
+                        any(word in donor_location_lower for word in location_lower.split() if len(word) > 2)):
+                        filtered_donors.append(donor)
+                donors = filtered_donors
         
         # If we have recipient coordinates, filter by distance
         if recipient_lat and recipient_lon:
             donors_with_distance = []
+            donors_without_coordinates = []
             
             for donor in donors:
                 # Geocode donor if not already done
@@ -481,25 +548,45 @@ def search_donors():
                         donor.latitude, donor.longitude
                     )
                     
-                    if distance and distance <= radius:
+                    print(f"Donor {donor.name}: {distance}km away (limit: {radius}km)")
+                    if distance is not None and distance <= radius:
                         donor.distance = distance
                         donors_with_distance.append(donor)
+                        print(f"✓ Added {donor.name} - within radius")
+                    else:
+                        print(f"✗ Excluded {donor.name} - outside radius")
+                else:
+                    # If donor can't be geocoded, check if location matches search text
+                    if location:
+                        location_lower = location.lower().strip()
+                        donor_location_lower = donor.location.lower().strip()
+                        if (location_lower in donor_location_lower or 
+                            donor_location_lower in location_lower or
+                            any(word in donor_location_lower for word in location_lower.split() if len(word) > 2)):
+                            donor.distance = None  # No distance available
+                            donors_without_coordinates.append(donor)
             
-            # Sort by distance (nearest first)
+            # Combine donors: first those with distance (sorted), then those without coordinates
             donors_with_distance.sort(key=lambda x: x.distance)
-            donors = donors_with_distance
+            donors = donors_with_distance + donors_without_coordinates
         
         # If no location provided, show all matching donors
         elif not location and not user_lat:
             # Just filter by blood group if no location provided
             pass
     
+    # Get current receiver info if logged in as receiver
+    current_receiver = None
+    if session.get('role') == 'receiver' and session.get('user_id'):
+        current_receiver = db.session.get(Receiver, session['user_id'])
+    
     return render_template('search_donors.html', 
                          donors=donors, 
                          location=location, 
                          blood_group=blood_group,
                          radius=radius,
-                         show_distance=show_distance)
+                         show_distance=show_distance,
+                         current_receiver=current_receiver)
 
 # API: Reverse Geocoding for "Use My Location" feature
 @app.route('/api/reverse-geocode', methods=['POST'])
@@ -581,9 +668,9 @@ def switch_role():
     # Get current user info
     current_user = None
     if current_role == 'donor':
-        current_user = Donor.query.get(session['user_id'])
+        current_user = db.session.get(Donor, session['user_id'])
     elif current_role == 'receiver':
-        current_user = Receiver.query.get(session['user_id'])
+        current_user = db.session.get(Receiver, session['user_id'])
     
     if not current_user:
         return redirect('/logout')
@@ -729,7 +816,7 @@ def add_donation():
         db.session.commit()
         return redirect('/donor-dashboard')
     
-    donor = Donor.query.get(session['user_id'])
+    donor = db.session.get(Donor, session['user_id'])
     return render_template('add_donation.html', donor=donor)
 
 # Create blood request
@@ -740,6 +827,17 @@ def create_request():
     
     if request.method == 'POST':
         from datetime import datetime
+        
+        # Get the requesting_for value
+        requesting_for = request.form['requesting_for']
+        patient_name = None
+        patient_relation = None
+        
+        # If requesting for someone else, get patient details
+        if requesting_for == 'someone_else':
+            patient_name = request.form.get('patient_name', '').strip()
+            patient_relation = request.form.get('patient_relation', '')
+        
         blood_request = BloodRequest(
             receiver_id=session['user_id'],
             blood_group_needed=request.form['blood_group_needed'],
@@ -750,19 +848,36 @@ def create_request():
             needed_by_date=datetime.strptime(request.form['needed_by_date'], '%Y-%m-%d'),
             contact_person=request.form['contact_person'],
             contact_number=request.form['contact_number'],
-            additional_notes=request.form.get('additional_notes', '')
+            additional_notes=request.form.get('additional_notes', ''),
+            requesting_for=requesting_for,
+            patient_name=patient_name,
+            patient_relation=patient_relation
         )
         db.session.add(blood_request)
         db.session.commit()
+        
+        # Send notification to compatible donors (you can enhance this further)
+        print(f"🩸 New {blood_request.blood_group_needed} blood request created by {request.form['contact_person']}")
+        print(f"📍 Location: {blood_request.hospital_location}")
+        print(f"🚨 Urgency: {blood_request.urgency}")
+        
         return redirect('/receiver-dashboard')
     
-    return render_template('create_request.html')
+    # Pass datetime for template use
+    from datetime import datetime, timedelta
+    today = datetime.now()
+    min_date = (today + timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    return render_template('create_request.html', min_date=min_date)
 
-# Respond to blood request
+# Respond to blood request (Accept/Reject)
 @app.route('/respond-to-request/<int:request_id>', methods=['POST'])
 def respond_to_request(request_id):
     if session.get('role') != 'donor':
         return redirect('/')
+    
+    action = request.form.get('action', 'accept')  # accept, reject, or completed
+    notes = request.form.get('notes', '')
     
     # Check if donor already responded
     existing_response = DonationResponse.query.filter_by(
@@ -770,16 +885,181 @@ def respond_to_request(request_id):
         donor_id=session['user_id']
     ).first()
     
-    if not existing_response:
+    if existing_response:
+        # Update existing response
+        if action == 'completed':
+            existing_response.status = 'Completed'
+            # Add to donation history
+            blood_request = db.session.get(BloodRequest, request_id)
+            donation = DonationHistory(
+                donor_id=session['user_id'],
+                blood_type=blood_request.blood_group_needed,
+                quantity=blood_request.quantity_needed,
+                donation_date=datetime.now(),
+                location=blood_request.hospital_location,
+                notes=f"Donated to {blood_request.contact_person} at {blood_request.hospital_name}"
+            )
+            db.session.add(donation)
+        else:
+            existing_response.status = 'Accepted' if action == 'accept' else 'Rejected'
+        
+        existing_response.donor_notes = notes
+        existing_response.response_date = datetime.now()
+        db.session.commit()
+        print(f"🔄 Updated response: {existing_response.status}")
+    else:
+        # Create new response
+        status = 'Accepted' if action == 'accept' else 'Rejected'
         response = DonationResponse(
             request_id=request_id,
             donor_id=session['user_id'],
-            donor_notes=request.form.get('notes', '')
+            status=status,
+            donor_notes=notes
         )
+        
         db.session.add(response)
         db.session.commit()
+        
+        # Log the response for debugging
+        blood_request = db.session.get(BloodRequest, request_id)
+        print(f"🩸 {status} request: {blood_request.contact_person} needs {blood_request.blood_group_needed}")
+    
+    # Check if this is an AJAX request
+    if request.headers.get('Content-Type') == 'application/json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True, 
+            'action': action,
+            'message': f'Request {"accepted" if action == "accept" else "declined" if action == "reject" else "completed"} successfully'
+        })
     
     return redirect('/donor-dashboard')
+
+# Delete blood request
+@app.route('/delete-request/<int:request_id>', methods=['POST'])
+def delete_request(request_id):
+    if session.get('role') != 'receiver':
+        return redirect('/')
+    
+    blood_request = BloodRequest.query.get_or_404(request_id)
+    
+    # Check if request belongs to current user
+    if blood_request.receiver_id != session['user_id']:
+        return redirect('/receiver-dashboard')
+    
+    # Delete associated responses first
+    DonationResponse.query.filter_by(request_id=request_id).delete()
+    
+    # Delete the request
+    db.session.delete(blood_request)
+    db.session.commit()
+    
+    print(f"🗑️ Deleted request: {blood_request.blood_group_needed} blood request")
+    return redirect('/receiver-dashboard')
+
+# Clear all requests for user
+@app.route('/clear-all-requests', methods=['POST'])
+def clear_all_requests():
+    if session.get('role') != 'receiver':
+        return redirect('/')
+    
+    receiver_id = session['user_id']
+    
+    # Get all user's requests
+    user_requests = BloodRequest.query.filter_by(receiver_id=receiver_id).all()
+    
+    # Delete all associated responses
+    for req in user_requests:
+        DonationResponse.query.filter_by(request_id=req.id).delete()
+    
+    # Delete all requests
+    BloodRequest.query.filter_by(receiver_id=receiver_id).delete()
+    db.session.commit()
+    
+    print(f"🧹 Cleared all requests for user {receiver_id}")
+    return redirect('/receiver-dashboard')
+
+# Manage donation response (cancel scheduled donation)
+@app.route('/manage-donation-response/<int:response_id>', methods=['POST'])
+def manage_donation_response(response_id):
+    if session.get('role') != 'donor':
+        return redirect('/')
+    
+    donation_response = DonationResponse.query.get_or_404(response_id)
+    
+    # Check if response belongs to current donor
+    if donation_response.donor_id != session['user_id']:
+        return redirect('/donor-dashboard')
+    
+    action = request.form.get('action', '')
+    
+    if action == 'cancel':
+        donation_response.status = 'Cancelled'
+        donation_response.donor_notes += f"\n[Cancelled by donor on {datetime.now().strftime('%m/%d/%Y')}]"
+        db.session.commit()
+        print(f"❌ Cancelled scheduled donation: Response ID {response_id}")
+    
+    return redirect('/donor-dashboard')
+
+# Update response status (for managing existing responses)
+@app.route('/update-response/<int:response_id>', methods=['POST'])
+def update_response(response_id):
+    if session.get('role') != 'donor':
+        return redirect('/')
+    
+    response = DonationResponse.query.filter_by(
+        id=response_id,
+        donor_id=session['user_id']
+    ).first()
+    
+    if response:
+        new_status = request.form.get('status')
+        if new_status in ['Accepted', 'Rejected', 'Confirmed', 'Completed', 'Cancelled']:
+            response.status = new_status
+            if request.form.get('notes'):
+                response.donor_notes = request.form.get('notes')
+            db.session.commit()
+    
+    return redirect('/donor-dashboard')
+
+# Recipient: Accept or reject donor response
+@app.route('/manage-donor-response/<int:response_id>', methods=['POST'])
+def manage_donor_response(response_id):
+    if session.get('role') != 'receiver':
+        return redirect('/')
+    
+    response = DonationResponse.query.get_or_404(response_id)
+    
+    # Verify this response belongs to receiver's request
+    if response.blood_request.receiver_id != session['user_id']:
+        return redirect('/receiver-dashboard')
+    
+    action = request.form.get('action')  # confirm or decline
+    
+    if action == 'confirm':
+        response.status = 'Confirmed'
+        # Also update the blood request status if this is the chosen donor
+        blood_request = response.blood_request
+        blood_request.status = 'Fulfilled'
+        
+        # Cancel other pending responses for this request
+        other_responses = DonationResponse.query.filter(
+            DonationResponse.request_id == response.request_id,
+            DonationResponse.id != response_id,
+            DonationResponse.status.in_(['Pending', 'Accepted'])
+        ).all()
+        
+        for other_response in other_responses:
+            other_response.status = 'Cancelled'
+        
+    elif action == 'decline':
+        response.status = 'Declined'
+    
+    if request.form.get('notes'):
+        # Add receiver notes to the response
+        response.receiver_notes = request.form.get('notes', '')
+    
+    db.session.commit()
+    return redirect('/receiver-dashboard')
 
 # Update donation availability
 @app.route('/toggle-availability', methods=['POST'])
@@ -787,10 +1067,171 @@ def toggle_availability():
     if session.get('role') != 'donor':
         return redirect('/')
     
-    donor = Donor.query.get(session['user_id'])
+    donor = db.session.get(Donor, session['user_id'])
     donor.availability = not donor.availability
     db.session.commit()
     return redirect('/donor-dashboard')
+
+# View detailed blood request with responses (for recipients)
+@app.route('/view-request/<int:request_id>')
+def view_request(request_id):
+    if session.get('role') != 'receiver':
+        return redirect('/')
+    
+    blood_request = BloodRequest.query.filter_by(
+        id=request_id,
+        receiver_id=session['user_id']
+    ).first_or_404()
+    
+    # Get all responses for this request
+    responses = DonationResponse.query.filter_by(request_id=request_id)\
+        .order_by(DonationResponse.response_date.desc()).all()
+    
+    return render_template('view_request.html', 
+                         blood_request=blood_request, 
+                         responses=responses)
+
+# Donor responses management page
+@app.route('/my-responses')
+def my_responses():
+    if session.get('role') != 'donor':
+        return redirect('/')
+    
+    # Get only non-declined responses for display (declined responses are kept for filtering but hidden)
+    responses = DonationResponse.query.filter(
+        DonationResponse.donor_id == session['user_id'],
+        ~DonationResponse.status.in_(['Rejected', 'Declined'])
+    ).order_by(DonationResponse.response_date.desc()).all()
+    
+    print(f"📋 Showing {len(responses)} visible responses for donor {session['user_id']} (declined responses hidden)")
+    
+    return render_template('donor_responses.html', responses=responses)
+
+# Clear visible responses (keep declined responses for filtering)
+@app.route('/clear-all-responses', methods=['POST', 'GET'])
+def clear_all_responses():
+    print(f"🔍 Clear visible responses called")
+    print(f"   Role: {session.get('role')}")
+    print(f"   User ID: {session.get('user_id')}")
+    
+    # For testing, allow GET requests to show debug info
+    if request.method == 'GET':
+        return f"Session info: {dict(session)}, Role: {session.get('role')}, User ID: {session.get('user_id')}"
+    
+    if session.get('role') != 'donor':
+        print("❌ Access denied - not a donor")
+        return jsonify({'success': False, 'message': 'Access denied'})
+    
+    if not session.get('user_id'):
+        print("❌ No user ID in session")
+        return jsonify({'success': False, 'message': 'Not logged in'})
+    
+    try:
+        donor_id = session['user_id']
+        print(f"🔍 Processing clear request for donor {donor_id}")
+        
+        # Only delete non-declined responses (keep declined/rejected for filtering)
+        responses_to_keep = ['Rejected', 'Declined']  # Keep these for dashboard filtering
+        responses_to_delete = DonationResponse.query.filter(
+            DonationResponse.donor_id == donor_id,
+            ~DonationResponse.status.in_(responses_to_keep)
+        ).all()
+        
+        print(f"📋 Found {len(responses_to_delete)} non-declined responses to clear")
+        
+        if len(responses_to_delete) == 0:
+            print("ℹ️ No clearable responses found")
+            return jsonify({
+                'success': True, 
+                'message': 'No responses to clear (declined responses are kept for filtering)',
+                'deleted_count': 0
+            })
+        
+        # Delete only non-declined responses
+        deleted_count = DonationResponse.query.filter(
+            DonationResponse.donor_id == donor_id,
+            ~DonationResponse.status.in_(responses_to_keep)
+        ).delete()
+        db.session.commit()
+        
+        print(f"🗑️ Successfully cleared {deleted_count} responses (kept declined responses for filtering)")
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Successfully cleared {deleted_count} responses',
+            'deleted_count': deleted_count
+        })
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error clearing responses: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Failed to clear responses: {str(e)}'})
+
+# Debug route to test clearing
+@app.route('/debug-clear')
+def debug_clear():
+    if session.get('role') != 'donor':
+        return f"Not logged in as donor. Current session: {dict(session)}"
+    
+    donor_id = session['user_id']
+    responses = DonationResponse.query.filter_by(donor_id=donor_id).all()
+    return f"Donor {donor_id} has {len(responses)} responses: {[r.id for r in responses]}"
+
+# Send direct request to specific donor
+@app.route('/send-request-to-donor/<int:donor_id>', methods=['GET', 'POST'])
+def send_request_to_donor(donor_id):
+    if session.get('role') != 'receiver':
+        return redirect('/')
+    
+    donor = Donor.query.get_or_404(donor_id)
+    receiver = db.session.get(Receiver, session['user_id'])
+    
+    if request.method == 'POST':
+        from datetime import datetime
+        
+        # Create blood request targeted for this specific donor
+        blood_request = BloodRequest(
+            receiver_id=session['user_id'],
+            blood_group_needed=request.form['blood_group_needed'],
+            quantity_needed=request.form['quantity_needed'],
+            urgency=request.form['urgency'],
+            hospital_name=request.form['hospital_name'],
+            hospital_location=request.form['hospital_location'],
+            needed_by_date=datetime.strptime(request.form['needed_by_date'], '%Y-%m-%d'),
+            contact_person=request.form['contact_person'],
+            contact_number=request.form['contact_number'],
+            additional_notes=request.form.get('additional_notes', '') + f"\n\n[Direct request sent to: {donor.name}]"
+        )
+        
+        # Debug: Log what contact person is being saved
+        print(f"📝 Creating request with contact_person: '{request.form['contact_person']}'")
+        print(f"📝 Receiver name: '{receiver.name}'")
+        db.session.add(blood_request)
+        db.session.commit()
+        
+        # Automatically create a pending response from the targeted donor
+        auto_response = DonationResponse(
+            request_id=blood_request.id,
+            donor_id=donor_id,
+            status='Pending',
+            donor_notes=f"Direct request received from {receiver.name}. Please respond."
+        )
+        db.session.add(auto_response)
+        db.session.commit()
+        
+        print(f"📨 Direct request sent from {receiver.name} to {donor.name}")
+        return redirect('/receiver-dashboard')
+    
+    # Pass datetime for template use
+    from datetime import datetime, timedelta
+    today = datetime.now()
+    min_date = (today + timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    return render_template('send_request_to_donor.html', 
+                         donor=donor, 
+                         receiver=receiver,
+                         min_date=min_date)
 
 # Function to create default admin (call this once)
 def create_default_admin():

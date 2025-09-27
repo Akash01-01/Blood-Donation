@@ -14,7 +14,10 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
   </head>
-  <body class="bg-gray-100">
+  <body class="bg-gra
+
+          <!-- My Profile Section -->
+          <div id="profile-section" class="section hidden">
     <div class="min-h-screen flex">
       <!-- Sidebar -->
       <div class="bg-red-700 text-white w-64 py-6 px-4 flex flex-col">
@@ -76,6 +79,26 @@
           >
             <i class="fas fa-hand-holding-heart w-6"></i>
             <span>Blood Requests</span>
+          </a>
+
+          <a
+            href="#upcoming-section"
+            class="flex items-center space-x-3 p-3 rounded hover:bg-red-600 transition-colors"
+            onclick="showSection('upcoming-section')"
+          >
+            <i class="fas fa-calendar-check w-6"></i>
+            <span>Upcoming Donations</span>
+            {% set accepted_count = donor_responses|selectattr("status", "equalto", "Accepted")|list|length %}
+            {% if accepted_count > 0 %}
+            <span class="bg-yellow-400 text-red-800 text-xs px-2 py-1 rounded-full font-bold ml-1">{{ accepted_count }}</span>
+            {% endif %}
+          </a>
+          <a
+            href="/my-responses"
+            class="flex items-center space-x-3 p-3 rounded hover:bg-red-600 transition-colors"
+          >
+            <i class="fas fa-reply-all w-6"></i>
+            <span>My Responses</span>
           </a>
           <a
             href="#profile-section"
@@ -175,6 +198,7 @@
                 </h3>
                 <p class="text-gray-500">Pending Responses</p>
               </div>
+
               <div class="bg-white rounded-lg shadow p-6">
                 <div class="flex items-center justify-between mb-4">
                   <div
@@ -191,6 +215,46 @@
                 <p class="text-gray-500">Blood Type</p>
               </div>
             </div>
+
+            <!-- Urgent Donations Alert -->
+            {% set accepted_requests = donor_responses|selectattr("status", "equalto", "Accepted")|list %}
+            {% if accepted_requests %}
+            <div class="mb-6 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg shadow-lg p-6 border border-red-400">
+              <div class="flex items-start justify-between">
+                <div class="flex items-center">
+                  <div class="bg-white bg-opacity-20 rounded-full p-3 mr-4">
+                    <i class="fas fa-exclamation-triangle text-2xl"></i>
+                  </div>
+                  <div>
+                    <h3 class="text-xl font-bold mb-2">🚨 URGENT: Blood Donation Reminder!</h3>
+                    <p class="text-red-100 mb-3">
+                      You have <strong>{{ accepted_requests|length }}</strong> blood donation(s) that you committed to. People are counting on you!
+                    </p>
+                    <div class="space-y-1">
+                      {% for response in accepted_requests %}
+                        {% set request = response.blood_request %}
+                        <div class="text-sm bg-white bg-opacity-15 rounded px-3 py-2">
+                          <strong>{{ request.blood_group_needed }}</strong> for {{ request.contact_person }} - 
+                          Needed by {{ request.needed_by_date.strftime('%B %d, %Y') }}
+                          {% if request.needed_by_date.date() <= (current_date + timedelta(days=3)) %}
+                            <span class="bg-yellow-400 text-red-800 px-2 py-1 rounded text-xs font-bold ml-2">VERY URGENT</span>
+                          {% endif %}
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <a href="#upcoming-section" 
+                     onclick="showSection('upcoming-section')"
+                     class="bg-white text-red-600 px-4 py-2 rounded-lg font-semibold hover:bg-red-50 transition-colors inline-flex items-center">
+                    <i class="fas fa-calendar-check mr-2"></i>
+                    View Details
+                  </a>
+                </div>
+              </div>
+            </div>
+            {% endif %}
 
             <!-- Quick Actions & Recent Activity -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -354,7 +418,7 @@
 
             <div class="space-y-4">
               {% for request in compatible_requests %}
-              <div class="bg-white rounded-lg shadow p-6">
+              <div class="bg-white rounded-lg shadow p-6" data-request-id="{{ request.id }}">
                 <div class="flex justify-between items-start mb-4">
                   <div>
                     <h4 class="text-lg font-semibold text-gray-800">
@@ -391,6 +455,19 @@
                     <p class="text-sm text-gray-600">Contact Number</p>
                     <p class="font-medium">{{ request.contact_number }}</p>
                   </div>
+                  <div>
+                    <p class="text-sm text-gray-600">Requesting For</p>
+                    {% if request.requesting_for == 'someone_else' %}
+                      <p class="font-medium text-blue-600">
+                        <i class="fas fa-user-friends mr-1"></i>{{ request.patient_name }}
+                        <span class="text-sm text-gray-500">({{ request.patient_relation }})</span>
+                      </p>
+                    {% else %}
+                      <p class="font-medium text-green-600">
+                        <i class="fas fa-user mr-1"></i>Self
+                      </p>
+                    {% endif %}
+                  </div>
                 </div>
 
                 {% if request.additional_notes %}
@@ -401,37 +478,98 @@
                 {% endif %}
 
                 <!-- Check if donor already responded -->
-                {% set responded = false %} {% for response in donor_responses
-                %} {% if response.request_id == request.id %} {% set responded =
-                true %}
-                <div class="bg-green-50 border border-green-200 rounded p-3">
-                  <p class="text-sm text-green-800">
-                    You responded on {{ response.response_date.strftime('%B %d,
-                    %Y') }} - Status: {{ response.status }}
-                  </p>
+                {% set user_response = none %} {% for response in
+                donor_responses %} {% if response.request_id == request.id %} {%
+                set user_response = response %} {% endif %} {% endfor %} {% if
+                user_response %}
+                <div class="bg-gray-50 border border-gray-200 rounded p-4">
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <p class="text-sm font-medium">
+                        Your Response:
+                        <span
+                          class="px-2 py-1 text-xs font-semibold rounded-full {% if user_response.status == 'Accepted' %}text-green-800 bg-green-100 {% elif user_response.status == 'Rejected' %}text-red-800 bg-red-100 {% elif user_response.status == 'Confirmed' %}text-blue-800 bg-blue-100 {% elif user_response.status == 'Completed' %}text-purple-800 bg-purple-100 {% else %}text-yellow-800 bg-yellow-100{% endif %}"
+                        >
+                          {{ user_response.status }}
+                        </span>
+                      </p>
+                      <p class="text-xs text-gray-600 mt-1">
+                        Responded on {{ user_response.response_date.strftime('%B
+                        %d, %Y at %I:%M %p') }}
+                      </p>
+                      {% if user_response.donor_notes %}
+                      <p class="text-sm text-gray-700 mt-2">
+                        <strong>Your note:</strong> {{ user_response.donor_notes
+                        }}
+                      </p>
+                      {% endif %} {% if user_response.receiver_notes %}
+                      <p
+                        class="text-sm text-blue-700 mt-2 p-2 bg-blue-50 rounded"
+                      >
+                        <strong>Recipient's response:</strong> {{
+                        user_response.receiver_notes }}
+                      </p>
+                      {% endif %}
+                    </div>
+
+                    {% if user_response.status in ['Accepted', 'Rejected'] %}
+                    <div class="ml-4">
+                      <form
+                        method="POST"
+                        action="/update-response/{{ user_response.id }}"
+                        class="inline"
+                      >
+                        <input type="hidden" name="status" value="Cancelled" />
+                        <button
+                          type="submit"
+                          class="text-xs text-red-600 hover:text-red-800 underline"
+                        >
+                          Cancel Response
+                        </button>
+                      </form>
+                    </div>
+                    {% endif %}
+                  </div>
                 </div>
-                {% endif %} {% endfor %} {% if not responded %}
-                <form
-                  method="POST"
-                  action="/respond-to-request/{{ request.id }}"
-                  class="mt-4"
-                >
-                  <div class="flex gap-4">
+                {% else %}
+                <!-- Accept/Reject Response Form -->
+                <div class="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <div class="mb-3">
                     <input
                       type="text"
-                      name="notes"
-                      placeholder="Add a note (optional)"
-                      class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                      id="notes-{{ request.id }}"
+                      placeholder="Add a note for the recipient (optional)"
+                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 text-sm"
                     />
-                    <button
-                      type="submit"
-                      class="bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                  </div>
+                  <div class="flex gap-3">
+                    <form
+                      method="POST"
+                      action="/respond-to-request/{{ request.id }}"
+                      class="flex-1"
                     >
-                      <i class="fas fa-hand-holding-heart mr-2"></i>Respond to
-                      Help
+                      <input type="hidden" name="action" value="accept" />
+                      <input
+                        type="hidden"
+                        name="notes"
+                        id="accept-notes-{{ request.id }}"
+                      />
+                      <button
+                        type="submit"
+                        onclick="document.getElementById('accept-notes-{{ request.id }}').value = document.getElementById('notes-{{ request.id }}').value"
+                        class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                      >
+                        <i class="fas fa-check mr-2"></i>Accept Request
+                      </button>
+                    </form>
+                    <button
+                      onclick="declineRequest({{ request.id }})"
+                      class="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+                    >
+                      <i class="fas fa-times mr-2"></i>Decline Request
                     </button>
                   </div>
-                </form>
+                </div>
                 {% endif %}
               </div>
               {% endfor %} {% if not compatible_requests %}
@@ -442,6 +580,118 @@
                   at the moment.
                 </p>
               </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Upcoming Donations Section -->
+          <div id="upcoming-section" class="section hidden">
+            <div class="bg-white rounded-lg shadow p-6">
+              <h3 class="text-lg font-semibold text-gray-800 mb-6">
+                <i class="fas fa-calendar-check text-red-600 mr-2"></i>
+                Upcoming Blood Donations
+              </h3>
+
+              {% set accepted_requests = donor_responses|selectattr("status", "equalto", "Accepted")|list %}
+              
+              {% if accepted_requests %}
+                <div class="mb-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                  <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
+                    <p class="text-yellow-800 font-medium">
+                      You have {{ accepted_requests|length }} blood donation(s) scheduled. Don't forget to donate!
+                    </p>
+                  </div>
+                </div>
+
+                <div class="space-y-4">
+                  {% for response in accepted_requests %}
+                    {% set request = response.blood_request %}
+                    <div class="border border-red-200 rounded-lg p-4 bg-red-50">
+                      <div class="flex justify-between items-start mb-3">
+                        <div>
+                          <h4 class="font-semibold text-gray-800 text-lg">
+                            {{ request.blood_group_needed }} Blood Needed
+                          </h4>
+                          <p class="text-gray-600">For: {{ request.contact_person }}</p>
+                          {% if request.requesting_for == 'someone_else' %}
+                            <p class="text-blue-600 text-sm">
+                              <i class="fas fa-user-friends mr-1"></i>Patient: {{ request.patient_name }}
+                              <span class="text-gray-500">({{ request.patient_relation }})</span>
+                            </p>
+                          {% else %}
+                            <p class="text-green-600 text-sm">
+                              <i class="fas fa-user mr-1"></i>Self donation request
+                            </p>
+                          {% endif %}
+                          <p class="text-gray-600">Location: {{ request.hospital_location }}</p>
+                        </div>
+                        <div class="text-right">
+                          <span class="px-3 py-1 bg-red-600 text-white text-sm font-semibold rounded-full">
+                            URGENT
+                          </span>
+                          <p class="text-sm text-gray-600 mt-1">
+                            Needed by: {{ request.needed_by_date.strftime('%B %d, %Y') }}
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <div class="bg-white p-3 rounded border">
+                        <div class="flex items-center justify-between">
+                          <div>
+                            <p class="text-sm text-gray-600">Contact Number</p>
+                            <p class="font-semibold">{{ request.contact_number }}</p>
+                          </div>
+                          <div class="text-right">
+                            <p class="text-sm text-gray-600">Quantity Needed</p>
+                            <p class="font-semibold">{{ request.quantity_needed }}</p>
+                          </div>
+                        </div>
+                        
+                        {% if request.additional_notes %}
+                        <div class="mt-3 p-2 bg-blue-50 rounded">
+                          <p class="text-sm text-gray-700">
+                            <strong>Additional Notes:</strong> {{ request.additional_notes }}
+                          </p>
+                        </div>
+                        {% endif %}
+                        
+                        {% if response.donor_notes %}
+                        <div class="mt-3 p-2 bg-green-50 rounded">
+                          <p class="text-sm text-gray-700">
+                            <strong>Your Response:</strong> {{ response.donor_notes }}
+                          </p>
+                        </div>
+                        {% endif %}
+                      </div>
+                      
+                      <div class="mt-4 flex gap-3">
+                        <form method="POST" action="/respond-to-request/{{ request.id }}" class="inline">
+                          <input type="hidden" name="action" value="completed" />
+                          <button type="submit" 
+                                  class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 text-sm font-medium">
+                            <i class="fas fa-check mr-1"></i>Mark as Completed
+                          </button>
+                        </form>
+                        
+                        <a href="tel:{{ request.contact_number }}" 
+                           class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 text-sm font-medium inline-flex items-center">
+                          <i class="fas fa-phone mr-1"></i>Call Now
+                        </a>
+                      </div>
+                      
+                      <div class="mt-3 text-sm text-gray-500">
+                        Accepted on: {{ response.response_date.strftime('%B %d, %Y at %I:%M %p') }}
+                      </div>
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="text-center py-8">
+                  <i class="fas fa-calendar-check text-gray-400 text-4xl mb-4"></i>
+                  <p class="text-gray-600">No upcoming blood donations scheduled.</p>
+                  <p class="text-gray-500 text-sm mt-2">Check the Blood Requests section to find people who need your help!</p>
+                </div>
               {% endif %}
             </div>
           </div>
@@ -528,6 +778,7 @@
           "dashboard-section": "Dashboard Overview",
           "donations-section": "Donation History",
           "requests-section": "Blood Requests",
+          "upcoming-section": "Upcoming Donations",
           "profile-section": "My Profile",
         };
         document.getElementById("page-title").textContent = titles[sectionId];
@@ -543,6 +794,114 @@
           showSection(hash);
         }
       });
+
+      // Function to decline a request with AJAX
+      function declineRequest(requestId) {
+        const notesElement = document.getElementById('notes-' + requestId);
+        const notes = notesElement ? notesElement.value : '';
+        
+        if (!confirm('Are you sure you want to decline this blood request?')) {
+          return;
+        }
+
+        // Show loading state
+        const requestCard = document.querySelector(`[data-request-id="${requestId}"]`);
+        if (requestCard) {
+          requestCard.style.opacity = '0.5';
+          requestCard.style.pointerEvents = 'none';
+        }
+
+        // Send AJAX request
+        fetch(`/respond-to-request/${requestId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: `action=reject&notes=${encodeURIComponent(notes)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // Remove the request card from the DOM
+            if (requestCard) {
+              requestCard.style.transition = 'all 0.3s ease';
+              requestCard.style.transform = 'translateX(-100%)';
+              requestCard.style.opacity = '0';
+              
+              setTimeout(() => {
+                requestCard.remove();
+                
+                // Check if there are any requests left
+                const requestsContainer = document.querySelector('#requests-section .space-y-6');
+                const remainingRequests = requestsContainer.querySelectorAll('[data-request-id]');
+                
+                if (remainingRequests.length === 0) {
+                  // Show "no requests" message
+                  requestsContainer.innerHTML = `
+                    <div class="text-center py-8">
+                      <i class="fas fa-heart text-gray-400 text-4xl mb-4"></i>
+                      <p class="text-gray-600">No blood requests available at the moment.</p>
+                      <p class="text-gray-500 text-sm mt-2">Check back later for new requests!</p>
+                    </div>
+                  `;
+                }
+              }, 300);
+            }
+            
+            // Show success message
+            showNotification('Request declined successfully', 'success');
+          } else {
+            // Show error message
+            showNotification('Failed to decline request', 'error');
+            // Restore the card
+            if (requestCard) {
+              requestCard.style.opacity = '1';
+              requestCard.style.pointerEvents = 'auto';
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          showNotification('An error occurred while declining the request', 'error');
+          // Restore the card
+          if (requestCard) {
+            requestCard.style.opacity = '1';
+            requestCard.style.pointerEvents = 'auto';
+          }
+        });
+      }
+
+      // Function to show notifications
+      function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 px-6 py-3 rounded-lg text-white font-medium transition-all duration-300 transform translate-x-full ${
+          type === 'success' ? 'bg-green-600' : 
+          type === 'error' ? 'bg-red-600' : 
+          'bg-blue-600'
+        }`;
+        notification.innerHTML = `
+          <div class="flex items-center">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} mr-2"></i>
+            ${message}
+          </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+          notification.style.transform = 'translateX(0)';
+        }, 100);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+          notification.style.transform = 'translateX(100%)';
+          setTimeout(() => {
+            document.body.removeChild(notification);
+          }, 300);
+        }, 3000);
+      }
     </script>
   </body>
 </html>
