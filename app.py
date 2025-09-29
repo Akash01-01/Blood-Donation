@@ -16,6 +16,7 @@ def geocode_address_free(address):
     """
     Convert address to coordinates using FREE Nominatim service
     No API key required, completely free
+    Enhanced for Indian addresses with fallback searches
     """
     try:
         # Initialize free geocoder
@@ -24,8 +25,18 @@ def geocode_address_free(address):
         # Add small delay to respect rate limits (1 per second)
         time.sleep(1.1)
         
-        # Geocode the address
+        # Try original address first
         location = geolocator.geocode(address, timeout=10)
+        
+        # If not found, try with ", India" appended
+        if not location and ", India" not in address.lower():
+            time.sleep(1.1)
+            location = geolocator.geocode(f"{address}, India", timeout=10)
+        
+        # If still not found, try with ", Karnataka, India" for common Indian cities
+        if not location and "karnataka" not in address.lower():
+            time.sleep(1.1)
+            location = geolocator.geocode(f"{address}, Karnataka, India", timeout=10)
         
         if location:
             return {
@@ -35,7 +46,7 @@ def geocode_address_free(address):
                 'success': True
             }
         else:
-            return {'success': False, 'error': 'Address not found'}
+            return {'success': False, 'error': f'Address "{address}" not found'}
             
     except Exception as e:
         return {'success': False, 'error': str(e)}
@@ -43,7 +54,7 @@ def geocode_address_free(address):
 def calculate_distance_free(lat1, lon1, lat2, lon2):
     """
     Calculate distance using free geopy library
-    Returns distance in kilometers
+    Returns distance in kilometers with high precision
     """
     try:
         point1 = (lat1, lon1)
@@ -52,8 +63,10 @@ def calculate_distance_free(lat1, lon1, lat2, lon2):
         # Calculate distance using geodesic (most accurate)
         distance = geodesic(point1, point2).kilometers
         
-        return round(distance, 2)
-    except:
+        # Round to 3 decimal places for higher precision
+        return round(distance, 3)
+    except Exception as e:
+        print(f"Distance calculation error: {e}")
         return None
 
 def reverse_geocode_free(lat, lon):
@@ -530,16 +543,27 @@ def search_donors():
             donors_with_distance = []
             donors_without_coordinates = []
             
+            print(f"📍 GPS Search: Lat={recipient_lat}, Lon={recipient_lon}, Radius={radius}km")
+            print(f"Filtering {len(donors)} donors by distance from GPS location...")
+            
             for donor in donors:
                 # Geocode donor if not already done
                 if not donor.geocoded or not donor.latitude or not donor.longitude:
+                    print(f"🔍 Geocoding donor: {donor.name} - {donor.location}")
                     donor_geocode = geocode_address_free(donor.location)
                     if donor_geocode['success']:
                         donor.latitude = donor_geocode['latitude']
                         donor.longitude = donor_geocode['longitude']
                         donor.geocoded = True
                         donor.last_geocoded = datetime.now()
-                        db.session.commit()
+                        try:
+                            db.session.commit()
+                            print(f"✅ Geocoded {donor.name}: {donor.latitude}, {donor.longitude}")
+                        except Exception as e:
+                            print(f"❌ Database error for {donor.name}: {e}")
+                            db.session.rollback()
+                    else:
+                        print(f"❌ Failed to geocode {donor.name} - {donor_geocode.get('error', 'Unknown error')}")
                 
                 # Calculate distance if donor has coordinates
                 if donor.latitude and donor.longitude:
@@ -548,32 +572,55 @@ def search_donors():
                         donor.latitude, donor.longitude
                     )
                     
-                    print(f"Donor {donor.name}: {distance}km away (limit: {radius}km)")
+                    print(f"📏 {donor.name} ({donor.location}): {distance}km away (limit: {radius}km)")
+                    print(f"   🗺️  Donor coords: ({donor.latitude}, {donor.longitude})")
+                    print(f"   📍 Your coords: ({recipient_lat}, {recipient_lon})")
+                    
                     if distance is not None and distance <= radius:
                         donor.distance = distance
                         donors_with_distance.append(donor)
-                        print(f"✓ Added {donor.name} - within radius")
+                        print(f"✅ INCLUDED: {donor.name} - {distance}km (within {radius}km radius)")
                     else:
-                        print(f"✗ Excluded {donor.name} - outside radius")
+                        print(f"❌ EXCLUDED: {donor.name} - {distance}km (outside {radius}km radius)")
                 else:
-                    # If donor can't be geocoded, check if location matches search text
-                    if location:
-                        location_lower = location.lower().strip()
-                        donor_location_lower = donor.location.lower().strip()
-                        if (location_lower in donor_location_lower or 
-                            donor_location_lower in location_lower or
-                            any(word in donor_location_lower for word in location_lower.split() if len(word) > 2)):
-                            donor.distance = None  # No distance available
-                            donors_without_coordinates.append(donor)
+                    print(f"⚠️  No coordinates for {donor.name}")
+                    print(f"   📍 Failed to geocode: {donor.location}")
+                    # Only include non-geocoded donors if no GPS coordinates are used (manual search)
+                    if not (user_lat and user_lon):
+                        donor.distance = None
+                        donors_without_coordinates.append(donor)
+                        print(f"✅ INCLUDED: {donor.name} - no coordinates but manual search mode")
+                    else:
+                        print(f"❌ EXCLUDED: {donor.name} - no coordinates in GPS search mode")
             
             # Combine donors: first those with distance (sorted), then those without coordinates
             donors_with_distance.sort(key=lambda x: x.distance)
             donors = donors_with_distance + donors_without_coordinates
-        
-        # If no location provided, show all matching donors
-        elif not location and not user_lat:
-            # Just filter by blood group if no location provided
-            pass
+            
+            # Double-check: verify all included donors are actually within radius
+            verified_donors = []
+            for donor in donors_with_distance:
+                if hasattr(donor, 'distance') and donor.distance is not None:
+                    if donor.distance <= radius:
+                        verified_donors.append(donor)
+                        print(f"✅ VERIFIED: {donor.name} - {donor.distance}km ✓")
+                    else:
+                        print(f"🚨 REMOVED: {donor.name} - {donor.distance}km (somehow exceeded radius)")
+            
+            # Update final donor list
+            donors = verified_donors + donors_without_coordinates
+            
+            print(f"🎯 FINAL RESULT: {len(donors)} donors total")
+            print(f"   📍 {len(verified_donors)} verified within {radius}km")
+            print(f"   ❓ {len(donors_without_coordinates)} without coordinates")
+            
+            if len(verified_donors) == 0 and len(donors_without_coordinates) == 0:
+                print(f"⚠️  WARNING: No donors found within {radius}km radius!")
+                print(f"📍 Recipient location: {recipient_lat}, {recipient_lon}")
+                print("Consider increasing search radius or checking donor locations.")
+        else:
+            print("No GPS coordinates available, using basic search")
+            # If no location provided, show all matching donors (already filtered by blood group)
     
     # Get current receiver info if logged in as receiver
     current_receiver = None

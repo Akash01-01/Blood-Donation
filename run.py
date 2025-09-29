@@ -1,16 +1,30 @@
+
+
 import subprocess
 import sys
 import os
 
-# Change to project directory
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+# Always use absolute paths relative to this file
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+INSTANCE_DIR = os.path.join(BASE_DIR, 'instance')
+DB_PATH = os.path.join(INSTANCE_DIR, 'blood_finder.db')
+CREATE_DB_PATH = os.path.join(BASE_DIR, 'create_db.py')
+APP_PATH = os.path.join(BASE_DIR, 'app.py')
+
+# Path to the virtual environment's Python
+VENV_PYTHON = os.path.abspath(os.path.join(BASE_DIR, '..', '.venv', 'Scripts', 'python.exe'))
+
+# Relaunch with venv Python if not already using it
+if os.path.exists(VENV_PYTHON) and os.path.abspath(sys.executable) != VENV_PYTHON:
+    print(f"[INFO] Relaunching with virtual environment Python: {VENV_PYTHON}")
+    args = [VENV_PYTHON] + sys.argv
+    os.execv(VENV_PYTHON, args)
 
 # Step 1: Initialize database only if it doesn't exist
-db_path = 'instance/blood_finder.db'
-if not os.path.exists(db_path):
+if not os.path.exists(DB_PATH):
     print("Creating new database...")
     try:
-        subprocess.run([sys.executable, "create_db.py"], check=True)
+        subprocess.run([sys.executable, CREATE_DB_PATH], check=True)
         print("Database created successfully!")
     except subprocess.CalledProcessError as e:
         print(f"Error creating database: {e}")
@@ -28,7 +42,7 @@ print("Press Ctrl+C to stop the server")
 print("="*50 + "\n")
 
 try:
-    subprocess.run([sys.executable, "app.py"])
+    subprocess.run([sys.executable, APP_PATH])
 except KeyboardInterrupt:
     print("\n" + "="*50)
     print("Server stopped by user (Ctrl+C)")
